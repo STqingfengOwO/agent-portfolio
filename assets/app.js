@@ -1,19 +1,8 @@
-/* Page interactions: notice dismiss, scroll reveal, active nav highlight. */
+/* Page interactions: scroll reveal and active nav highlight. */
 (function () {
   'use strict';
 
-  /* 1. Dismiss the sample-content notice */
-  var notice = document.getElementById('notice');
-  if (notice) {
-    var closeBtn = notice.querySelector('[data-dismiss-notice]');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', function () {
-        notice.parentNode.removeChild(notice);
-      });
-    }
-  }
-
-  /* 2. Scroll reveal — the class is added by JS so content stays visible when JS is unavailable */
+  /* 1. Scroll reveal — the class is added by JS so content stays visible when JS is unavailable */
   var revealTargets = document.querySelectorAll('[data-reveal]');
   if (revealTargets.length && 'IntersectionObserver' in window) {
     var revealObserver = new IntersectionObserver(function (entries) {
@@ -31,7 +20,7 @@
     });
   }
 
-  /* 3. Highlight the nav link for the section currently in view */
+  /* 2. Highlight the nav link for the section currently in view */
   var navLinks = Array.prototype.slice.call(document.querySelectorAll('.nav__links a'));
   var navSections = navLinks.map(function (a) {
     return document.querySelector(a.getAttribute('href'));
