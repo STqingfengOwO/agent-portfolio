@@ -4,12 +4,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>我的 Agent 工作档案 · 用过的 Agent、做过的事、取得的成果</title>
-  <meta name="description" content="一份公开的 AI Agent 工作档案：我使用过的 Agent、它们承担的任务，以及最终交付的成果。">
-  <meta name="author" content="Agent Work Archive">
+  <title>我用过的一些 AI 工具</title>
+  <meta name="description" content="一份简单的记录：我用豆包生成图片、用 Trae 做了这个网站、用 DeepSeek 查题目。">
+  <meta name="author" content="STqingfengOwO">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="我的 Agent 工作档案">
-  <meta property="og:description" content="我用过的 Agent、做过的事、取得的成果 —— 一份可公开查阅的工作记录。">
+  <meta property="og:title" content="我用过的一些 AI 工具">
+  <meta property="og:description" content="用豆包生成图片、用 Trae 做网站、用 DeepSeek 查题目。">
 
   <style>
     /* === Font faces === */
@@ -59,7 +59,6 @@
       --accent: #3B5BFF;
       --accent2: #D6560F;
       --deep: #0E1014;
-      --deep2: #171A20;
       --on-deep: #F2F0EA;
       --font: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
       --font-mono: 'GeistMono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -86,7 +85,6 @@
     ::selection { background: rgba(59, 91, 255, 0.18); }
 
     .wrap { width: 100%; max-width: var(--max); margin: 0 auto; padding: 0 28px; }
-    .mono { font-family: var(--font-mono); }
 
     .eyebrow {
       font-family: var(--font-mono);
@@ -98,41 +96,6 @@
     }
 
     mark.key { background: none; color: var(--accent); font-weight: 600; }
-
-    /* === Sample-content notice === */
-    .notice {
-      background: #FCF2EA;
-      border-bottom: 1px solid #F1DCC9;
-      color: #7A4A22;
-      font-size: 0.8rem;
-      line-height: 1.6;
-    }
-    .notice__inner {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 9px 0;
-      text-align: center;
-      flex-wrap: wrap;
-    }
-    .notice__dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: var(--accent2);
-      flex: none;
-    }
-    .notice__close {
-      border: 1px solid #EBCDB4;
-      background: transparent;
-      color: inherit;
-      font-size: 0.72rem;
-      line-height: 1;
-      padding: 5px 9px;
-      border-radius: 999px;
-      cursor: pointer;
-      flex: none;
-    }
-    .notice__close:hover { background: #F6E4D6; }
 
     /* === Hero === */
     .hero {
@@ -193,12 +156,6 @@
       gap: 8px;
       margin-top: 28px;
     }
-    .hero__cta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 34px;
-    }
 
     .chip {
       display: inline-flex;
@@ -219,23 +176,6 @@
       background: rgba(255, 255, 255, 0.06);
       color: rgba(242, 240, 234, 0.86);
     }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.92rem;
-      font-weight: 700;
-      padding: 12px 22px;
-      border-radius: 999px;
-      text-decoration: none;
-      border: 1px solid transparent;
-      transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
-    }
-    .btn--primary { background: var(--accent); color: #fff; }
-    .btn--primary:hover { transform: translateY(-2px); background: #3050EE; }
-    .btn--ghost { border-color: rgba(255, 255, 255, 0.28); color: var(--on-deep); }
-    .btn--ghost:hover { background: rgba(255, 255, 255, 0.09); }
 
     /* === Nav === */
     .nav {
@@ -311,59 +251,31 @@
       flex: none;
     }
 
-    /* === Stat strip === */
-    .stat-grid {
+    /* === Simple summary strip === */
+    .summary {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 1px;
       background: var(--rule);
       border: 1px solid var(--rule);
       border-radius: var(--radius);
       overflow: hidden;
     }
-    .stat { background: var(--card); padding: 24px 22px; }
-    .stat__num {
+    .summary__item { background: var(--card); padding: 24px 22px; }
+    .summary__num {
       font-family: var(--font-display);
-      font-size: clamp(1.9rem, 4vw, 2.6rem);
+      font-size: clamp(1.7rem, 3.4vw, 2.3rem);
       color: var(--accent);
       line-height: 1;
-      letter-spacing: 0.01em;
       font-weight: 700;
     }
-    .stat__num .unit {
-      font-size: 0.42em;
-      color: var(--muted);
-      margin-left: 4px;
-      letter-spacing: 0;
-    }
-    .stat__label { font-size: 0.8rem; color: var(--muted); margin-top: 10px; }
+    .summary__num .unit { font-size: 0.46em; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
+    .summary__label { font-size: 0.82rem; color: var(--muted); margin-top: 10px; }
 
     /* === Prose === */
     .prose { max-width: 760px; }
     .prose p { margin-top: 18px; color: var(--ink-soft); }
     .prose p:first-child { margin-top: 0; }
-
-    /* === Pipeline === */
-    .pipeline {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 14px;
-    }
-    .pipe {
-      background: var(--card);
-      border: 1px solid var(--rule);
-      border-radius: 12px;
-      padding: 18px 16px 20px;
-    }
-    .pipe__idx {
-      font-family: var(--font-mono);
-      font-size: 0.68rem;
-      letter-spacing: 0.14em;
-      color: var(--accent);
-      font-weight: 700;
-    }
-    .pipe h4 { font-size: 0.97rem; margin-top: 10px; }
-    .pipe p { font-size: 0.82rem; color: var(--muted); margin-top: 7px; line-height: 1.6; }
 
     /* === Agent cards === */
     .card-grid {
@@ -377,7 +289,7 @@
       background: var(--card);
       border: 1px solid var(--rule);
       border-radius: var(--radius);
-      padding: 22px 20px;
+      padding: 24px 22px;
       transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
     }
     .agent-card:hover {
@@ -391,7 +303,7 @@
       justify-content: space-between;
       gap: 10px;
     }
-    .agent-card h3 { font-size: 1.06rem; }
+    .agent-card h3 { font-size: 1.12rem; }
     .tag {
       font-family: var(--font-mono);
       font-size: 0.64rem;
@@ -404,10 +316,10 @@
       white-space: nowrap;
       flex: none;
     }
-    .agent-card__use { font-size: 0.88rem; color: var(--muted); margin-top: 11px; }
+    .agent-card__use { font-size: 0.9rem; color: var(--muted); margin-top: 12px; }
     .agent-card ul { list-style: none; margin-top: 15px; display: grid; gap: 7px; }
     .agent-card li {
-      font-size: 0.85rem;
+      font-size: 0.86rem;
       color: var(--ink-soft);
       padding-left: 16px;
       position: relative;
@@ -420,161 +332,47 @@
       border-radius: 50%;
       background: var(--accent2);
     }
-    .agent-card__foot {
-      margin-top: auto;
-      padding-top: 16px;
+
+    /* === Simple list (做过的事) === */
+    .work { display: grid; gap: 18px; }
+    .work__item {
+      background: var(--card);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius);
+      padding: 26px 24px;
+    }
+    .work__top {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
-      border-top: 1px solid var(--rule);
-    }
-    .agent-card__foot .lbl {
-      font-family: var(--font-mono);
-      font-size: 0.66rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-    .dots { display: flex; gap: 4px; }
-    .dots i {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--rule);
-      display: block;
-    }
-    .dots i.on { background: var(--accent); }
-
-    /* === Timeline === */
-    .timeline { border-left: 2px solid var(--rule); margin-left: 6px; }
-    .tl-item { position: relative; padding: 0 0 36px 30px; }
-    .tl-item:last-child { padding-bottom: 0; }
-    .tl-item::before {
-      content: '';
-      position: absolute;
-      left: -7px; top: 7px;
-      width: 12px; height: 12px;
-      border-radius: 50%;
-      background: var(--bg2);
-      border: 2px solid var(--accent);
-    }
-    .section--tint .tl-item::before { background: var(--card); }
-    .tl-when {
-      font-family: var(--font-mono);
-      font-size: 0.72rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--accent);
-    }
-    .tl-item h3 { font-size: 1.15rem; margin-top: 7px; }
-    .tl-item > p { font-size: 0.92rem; color: var(--ink-soft); margin-top: 9px; max-width: 72ch; }
-    .tl-agents { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 13px; }
-    .tl-result {
-      margin-top: 13px;
-      font-size: 0.9rem;
-      padding: 10px 15px;
-      border-left: 3px solid var(--accent2);
-      background: var(--card);
-      border-radius: 0 8px 8px 0;
-      max-width: 72ch;
-    }
-    .section--tint .tl-result { background: var(--bg); }
-    .tl-result b { color: var(--accent2); }
-
-    /* === Metrics & charts === */
-    .metric-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 18px;
-    }
-    .metric {
-      background: var(--card);
-      border: 1px solid var(--rule);
-      border-radius: var(--radius);
-      padding: 22px 20px;
-    }
-    .metric__num {
-      font-family: var(--font-display);
-      font-size: clamp(1.9rem, 4vw, 2.5rem);
-      line-height: 1;
-      letter-spacing: 0.01em;
-      color: var(--accent);
-    }
-    .metric__num .unit { font-size: 0.44em; color: var(--muted); margin-left: 3px; }
-    .metric__label { font-size: 0.82rem; color: var(--muted); margin-top: 10px; }
-
-    .chart-figure { margin: 0; }
-    .chart-figure figcaption {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: var(--ink);
-      margin-bottom: 14px;
-    }
-    .chart-box {
-      background: var(--card);
-      border: 1px solid var(--rule);
-      border-radius: var(--radius);
-      padding: 10px;
-    }
-    .split {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 32px;
-      align-items: start;
-      margin-top: 46px;
-    }
-
-    /* === Table === */
-    .table-wrap {
-      overflow-x: auto;
-      overflow-y: auto;
-      max-height: 600px;
-      border: 1px solid var(--rule);
-      border-radius: var(--radius);
-      background: var(--card);
-    }
-    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; min-width: 660px; }
-    thead th {
-      text-align: left;
-      font-family: var(--font-mono);
-      font-size: 0.7rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
-      font-weight: 700;
-      padding: 15px 18px;
-      border-bottom: 1px solid var(--rule);
-      position: sticky;
-      top: 0;
-      background: var(--card);
-      z-index: 1;
-    }
-    tbody td {
-      padding: 15px 18px;
-      border-bottom: 1px solid var(--rule);
-      vertical-align: top;
-      color: var(--ink-soft);
-    }
-    tbody tr:last-child td { border-bottom: none; }
-    tbody td:first-child { font-weight: 600; color: var(--ink); }
-
-    /* === Achievement list === */
-    .achieve { display: grid; gap: 14px; }
-    .achieve li {
-      list-style: none;
-      display: flex;
       gap: 12px;
-      font-size: 0.92rem;
-      color: var(--ink-soft);
+      flex-wrap: wrap;
     }
-    .achieve li .idx {
-      font-family: var(--font-mono);
-      font-size: 0.7rem;
-      color: var(--accent);
-      font-weight: 700;
-      padding-top: 0.35em;
-      flex: none;
+    .work__item h3 { font-size: 1.15rem; }
+    .work__item > p { font-size: 0.93rem; color: var(--ink-soft); margin-top: 12px; max-width: 74ch; }
+    .work__agents { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+    .work__result {
+      margin-top: 16px;
+      font-size: 0.9rem;
+      padding: 11px 16px;
+      border-left: 3px solid var(--accent2);
+      background: var(--bg2);
+      border-radius: 0 8px 8px 0;
+      max-width: 74ch;
     }
+    .work__result b { color: var(--accent2); }
+
+    /* === Closing note === */
+    .note {
+      background: var(--card);
+      border: 1px solid var(--rule);
+      border-left: 4px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 26px 26px;
+      max-width: 780px;
+    }
+    .note p { color: var(--ink-soft); font-size: 0.95rem; }
+    .note p + p { margin-top: 14px; }
 
     /* === Footer === */
     .site-footer {
@@ -633,10 +431,6 @@
     /* === Responsive === */
     @media (max-width: 980px) {
       .card-grid { grid-template-columns: repeat(2, 1fr); }
-      .pipeline { grid-template-columns: repeat(3, 1fr); }
-      .stat-grid { grid-template-columns: repeat(2, 1fr); }
-      .metric-grid { grid-template-columns: repeat(2, 1fr); }
-      .split { grid-template-columns: 1fr; gap: 34px; }
     }
     @media (max-width: 640px) {
       .wrap { padding: 0 18px; }
@@ -645,14 +439,12 @@
       .hero__inner { padding-top: 66px; padding-bottom: 54px; }
       .nav__brand { display: none; }
       .nav__inner { gap: 0; }
-      .card-grid, .stat-grid, .metric-grid, .pipeline { grid-template-columns: 1fr; }
-      .split { margin-top: 34px; }
-      thead th { position: static; }
+      .card-grid, .summary { grid-template-columns: 1fr; }
     }
 
     /* === Print === */
     @media print {
-      .nav, .notice, .hero__cta, .site-footer::before { display: none !important; }
+      .nav, .site-footer::before { display: none !important; }
       body { background: #fff; }
       .hero { background: #fff; color: #000; }
       .hero::before, .hero::after { display: none; }
@@ -672,29 +464,15 @@
 </head>
 <body>
 
-  <!-- 顶部提示条：把真实内容填好后，删除这一整段 <div class="notice"> 即可 -->
-  <div class="notice" id="notice">
-    <div class="wrap notice__inner">
-      <span class="notice__dot" aria-hidden="true"></span>
-      <span><strong>示例内容</strong> · 本页为结构演示，请把下方的 Agent 清单、任务与成果替换成你自己的真实记录。</span>
-      <button type="button" class="notice__close" data-dismiss-notice aria-label="关闭提示">关闭</button>
-    </div>
-  </div>
-
   <!-- ===== Hero ===== -->
   <header class="hero" id="top">
     <div class="wrap hero__inner">
-      <p class="hero__kicker">Agent Work Archive</p>
-      <h1 class="hero__title">我用过的 Agent，<br>以及它们做成的事</h1>
-      <p class="hero__lead">这里记录我在日常工作中使用的 AI Agent、它们各自承担的任务，以及最终交付的成果 —— 一份可以公开查阅的协作档案。</p>
+      <p class="hero__kicker">A small record</p>
+      <h1 class="hero__title">我用过的一些<br>AI 工具</h1>
+      <p class="hero__lead">没什么了不起的事，就是把 AI 工具当日常帮手用一用：生成几张图片、做了这个网站、查了些题目。</p>
       <div class="hero__meta">
-        <span class="chip chip--dark">9 个在用 Agent</span>
-        <span class="chip chip--dark">近 2 年记录</span>
-        <span class="chip chip--dark">公开可访问</span>
-      </div>
-      <div class="hero__cta">
-        <a class="btn btn--primary" href="#agents">查看 Agent 清单</a>
-        <a class="btn btn--ghost" href="#contact">联系我</a>
+        <span class="chip chip--dark">3 个工具</span>
+        <span class="chip chip--dark">豆包 · Trae · DeepSeek</span>
       </div>
     </div>
   </header>
@@ -702,12 +480,11 @@
   <!-- ===== Nav ===== -->
   <nav class="nav" aria-label="页面导航">
     <div class="wrap nav__inner">
-      <span class="nav__brand"><i aria-hidden="true"></i>Work Archive</span>
+      <span class="nav__brand"><i aria-hidden="true"></i>My Tools</span>
       <div class="nav__links">
-        <a href="#overview">概览</a>
-        <a href="#agents">Agent</a>
-        <a href="#projects">做过的事</a>
-        <a href="#results">成果</a>
+        <a href="#tools">工具</a>
+        <a href="#work">做过的事</a>
+        <a href="#takeaway">一些感受</a>
         <a href="#contact">联系</a>
       </div>
     </div>
@@ -720,414 +497,139 @@
       <div class="wrap">
         <div class="section__head" data-reveal>
           <p class="eyebrow">01 / 概览</p>
-          <h2>我的 Agent 工作方式</h2>
-          <p>过去两年，我把 AI Agent 从「偶尔问问」变成了「每天都用」的工作伙伴。</p>
+          <h2>就这三件事</h2>
+          <p>我用过的 AI 工具不多，用途也很简单。下面就是全部了。</p>
         </div>
 
-        <div class="stat-grid" data-reveal>
-          <div class="stat">
-            <div class="stat__num">9</div>
-            <div class="stat__label">在用的 Agent</div>
+        <div class="summary" data-reveal>
+          <div class="summary__item">
+            <div class="summary__num">3</div>
+            <div class="summary__label">用过的 AI 工具</div>
           </div>
-          <div class="stat">
-            <div class="stat__num">178</div>
-            <div class="stat__label">累计协作次数</div>
+          <div class="summary__item">
+            <div class="summary__num">3</div>
+            <div class="summary__label">做过的事</div>
           </div>
-          <div class="stat">
-            <div class="stat__num">36</div>
-            <div class="stat__label">交付的成果</div>
-          </div>
-          <div class="stat">
-            <div class="stat__num">2<span class="unit">年</span></div>
-            <div class="stat__label">持续使用时长</div>
+          <div class="summary__item">
+            <div class="summary__num">1<span class="unit">个</span></div>
+            <div class="summary__label">做出来的网站（就是本页）</div>
           </div>
         </div>
 
-        <div class="prose" data-reveal style="margin-top:46px">
-          <p>它们不替我做决定，而是承担那些<mark class="key">重复、耗时、需要大量信息处理</mark>的环节：资料检索、初稿撰写、代码生成、数据清洗、格式转换。</p>
-          <p>我的角色也从「执行者」变成了<mark class="key">编排者</mark> —— 定义问题、拆解任务、给 Agent 足够的上下文、验收结果，并对最终交付负责。</p>
-        </div>
-
-        <h3 class="subhead" data-reveal>我如何与 Agent 协作</h3>
-        <div class="pipeline" data-reveal>
-          <div class="pipe">
-            <div class="pipe__idx">STEP 01</div>
-            <h4>定义问题</h4>
-            <p>先想清楚要解决什么、成功标准是什么。</p>
-          </div>
-          <div class="pipe">
-            <div class="pipe__idx">STEP 02</div>
-            <h4>拆解任务</h4>
-            <p>把大目标切成 Agent 能独立完成的小块。</p>
-          </div>
-          <div class="pipe">
-            <div class="pipe__idx">STEP 03</div>
-            <h4>提供上下文</h4>
-            <p>给资料、给约束、给示例输出格式。</p>
-          </div>
-          <div class="pipe">
-            <div class="pipe__idx">STEP 04</div>
-            <h4>Agent 执行</h4>
-            <p>并行推进，我负责盯进度和质量。</p>
-          </div>
-          <div class="pipe">
-            <div class="pipe__idx">STEP 05</div>
-            <h4>验收与交付</h4>
-            <p>逐条核对、修订，再由我对外交付。</p>
-          </div>
+        <div class="prose" data-reveal style="margin-top:44px">
+          <p>我不是什么重度用户，也没有拿它们做过什么大项目。基本都是<mark class="key">遇到一件小事、找个工具试试</mark>这种程度。</p>
+          <p>但用下来确实觉得挺方便——原来要花时间的事，现在几分钟能搞定，<mark class="key">省下来的时间就归自己了</mark>。</p>
         </div>
       </div>
     </section>
 
-    <!-- ===== 02 Agent 清单 ===== -->
-    <section class="section" id="agents">
+    <!-- ===== 02 工具 ===== -->
+    <section class="section" id="tools">
       <div class="wrap">
         <div class="section__head" data-reveal>
-          <p class="eyebrow">02 / Toolbox</p>
-          <h2>我用过的 Agent</h2>
-          <p>按用途分类。下面写的是每个 Agent <strong>我实际用来做什么</strong>、怎么用，以及使用频率。</p>
+          <p class="eyebrow">02 / Tools</p>
+          <h2>我用过的工具</h2>
+          <p>每个工具我用来做什么，都写在下面了。</p>
         </div>
 
-        <figure class="chart-figure" data-reveal style="margin-bottom:48px">
-          <figcaption>各 Agent 累计协作次数</figcaption>
-          <div class="chart-box">
-            <div id="chart-agents" style="width:100%;min-height:430px"></div>
-          </div>
-        </figure>
-
         <div class="card-grid">
-          <!-- 替换下面每张卡片的名称、用途与要点即可 -->
           <article class="agent-card" data-reveal>
             <div class="agent-card__head">
-              <h3>Claude</h3>
-              <span class="tag">推理 · 写作</span>
+              <h3>豆包</h3>
+              <span class="tag">生成图片</span>
             </div>
-            <p class="agent-card__use">长文档理解、代码重构、结构化写作</p>
+            <p class="agent-card__use">用来生成一些图片</p>
             <ul>
-              <li>通读 PRD 与技术方案，输出风险清单</li>
-              <li>重构遗留模块，生成迁移脚本</li>
-              <li>把零散笔记整理成可交付文档</li>
+              <li>描述想要的画面，让它生成图片</li>
+              <li>不满意就改描述，重新生成</li>
+              <li>偶尔用来配文字内容</li>
             </ul>
-            <div class="agent-card__foot">
-              <span class="lbl">使用频率</span>
-              <span class="dots" aria-label="使用频率 5/5"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span>
-            </div>
-          </article>
-
-          <article class="agent-card" data-reveal>
-            <div class="agent-card__head">
-              <h3>Cursor</h3>
-              <span class="tag">代码开发</span>
-            </div>
-            <p class="agent-card__use">真实仓库里的跨文件编辑与调试</p>
-            <ul>
-              <li>按需求完成跨文件改动</li>
-              <li>根据报错定位并修复问题</li>
-              <li>补全缺失的单测</li>
-            </ul>
-            <div class="agent-card__foot">
-              <span class="lbl">使用频率</span>
-              <span class="dots" aria-label="使用频率 5/5"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span>
-            </div>
           </article>
 
           <article class="agent-card" data-reveal>
             <div class="agent-card__head">
               <h3>Trae</h3>
-              <span class="tag">Agent 编排</span>
+              <span class="tag">做网站</span>
             </div>
-            <p class="agent-card__use">在 IDE 内驱动 Agent 端到端完成任务</p>
+            <p class="agent-card__use">用 Trae 做了你现在看到的这个网站</p>
             <ul>
-              <li>从需求到代码到测试一气呵成</li>
-              <li>自动跑测试并迭代修订</li>
-              <li>生成页面与文档类交付物</li>
+              <li>把想法讲清楚，让它写页面代码</li>
+              <li>不满意的地方继续跟它说，它来改</li>
+              <li>最后部署上线，别人也能打开</li>
             </ul>
-            <div class="agent-card__foot">
-              <span class="lbl">使用频率</span>
-              <span class="dots" aria-label="使用频率 5/5"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span>
-            </div>
           </article>
 
           <article class="agent-card" data-reveal>
             <div class="agent-card__head">
-              <h3>ChatGPT</h3>
-              <span class="tag">通用助手</span>
+              <h3>DeepSeek</h3>
+              <span class="tag">查题目</span>
             </div>
-            <p class="agent-card__use">问答、写作、头脑风暴、翻译润色</p>
+            <p class="agent-card__use">用来查题目、理清思路</p>
             <ul>
-              <li>把模糊想法快速变成提纲</li>
-              <li>中英互译与语气调整</li>
-              <li>解释陌生概念与技术名词</li>
+              <li>把不会的题目发过去问</li>
+              <li>让它讲讲思路和步骤</li>
+              <li>顺便问一些不懂的概念</li>
             </ul>
-            <div class="agent-card__foot">
-              <span class="lbl">使用频率</span>
-              <span class="dots" aria-label="使用频率 4/5"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span>
-            </div>
-          </article>
-
-          <article class="agent-card" data-reveal>
-            <div class="agent-card__head">
-              <h3>Gemini</h3>
-              <span class="tag">多模态</span>
-            </div>
-            <p class="agent-card__use">长上下文、图片与 PDF 理解</p>
-            <ul>
-              <li>批量读取 PDF 并提取要点</li>
-              <li>对比多份资料的差异</li>
-              <li>从截图中还原信息</li>
-            </ul>
-            <div class="agent-card__foot">
-              <span class="lbl">使用频率</span>
-              <span class="dots" aria-label="使用频率 3/5"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span>
-            </div>
-          </article>
-
-          <article class="agent-card" data-reveal>
-            <div class="agent-card__head">
-              <h3>GitHub Copilot</h3>
-              <span class="tag">代码补全</span>
-            </div>
-            <p class="agent-card__use">边写边补，处理样板代码</p>
-            <ul>
-              <li>生成模板代码与单测骨架</li>
-              <li>补全重复的配置与类型定义</li>
-            </ul>
-            <div class="agent-card__foot">
-              <span class="lbl">使用频率</span>
-              <span class="dots" aria-label="使用频率 3/5"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span>
-            </div>
-          </article>
-
-          <article class="agent-card" data-reveal>
-            <div class="agent-card__head">
-              <h3>Deep Research</h3>
-              <span class="tag">深度检索</span>
-            </div>
-            <p class="agent-card__use">带来源的联网调研</p>
-            <ul>
-              <li>竞品与技术选型调研</li>
-              <li>输出带引用的调研报告</li>
-            </ul>
-            <div class="agent-card__foot">
-              <span class="lbl">使用频率</span>
-              <span class="dots" aria-label="使用频率 3/5"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span>
-            </div>
-          </article>
-
-          <article class="agent-card" data-reveal>
-            <div class="agent-card__head">
-              <h3>Whisper / 听悟</h3>
-              <span class="tag">语音转写</span>
-            </div>
-            <p class="agent-card__use">会议与访谈录音转文字</p>
-            <ul>
-              <li>录音批量转写并分段整理</li>
-              <li>自动生成待办与决议</li>
-            </ul>
-            <div class="agent-card__foot">
-              <span class="lbl">使用频率</span>
-              <span class="dots" aria-label="使用频率 3/5"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span>
-            </div>
-          </article>
-
-          <article class="agent-card" data-reveal>
-            <div class="agent-card__head">
-              <h3>即梦 / Midjourney</h3>
-              <span class="tag">图像生成</span>
-            </div>
-            <p class="agent-card__use">配图、概念草图、视觉参考</p>
-            <ul>
-              <li>生成文章配图与封面</li>
-              <li>快速出 UI 概念图做对比</li>
-            </ul>
-            <div class="agent-card__foot">
-              <span class="lbl">使用频率</span>
-              <span class="dots" aria-label="使用频率 2/5"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span>
-            </div>
           </article>
         </div>
       </div>
     </section>
 
     <!-- ===== 03 做过的事 ===== -->
-    <section class="section section--tint" id="projects">
+    <section class="section section--tint" id="work">
       <div class="wrap">
         <div class="section__head" data-reveal>
-          <p class="eyebrow">03 / Work Log</p>
+          <p class="eyebrow">03 / Work</p>
           <h2>做过的事</h2>
-          <p>挑出 6 件有代表性的事：什么背景、用了哪些 Agent、做成了什么。</p>
+          <p>三件小事，对应上面三个工具。</p>
         </div>
 
-        <!-- 替换下面每条时间线记录 -->
-        <div class="timeline">
-          <article class="tl-item" data-reveal>
-            <div class="tl-when">2026 Q3</div>
-            <h3>搭建个人 Agent 作品集网站</h3>
-            <p>从设计到实现一个人可维护的单页站点，用来沉淀 Agent 使用记录，并让任何人都能通过链接访问。</p>
-            <div class="tl-agents">
-              <span class="chip">Trae</span><span class="chip">Claude</span>
+        <div class="work">
+          <article class="work__item" data-reveal>
+            <div class="work__top">
+              <h3>生成了一些图片</h3>
+              <span class="tag">AI 绘图</span>
             </div>
-            <div class="tl-result">结果：得到一份<b>线上可公开访问</b>的工作档案（就是你现在看到的这个页面）。</div>
+            <p>想要什么画面就用文字描述给豆包，它来生成。有时候要试好几次，改改说法效果会不一样。</p>
+            <div class="work__agents"><span class="chip">豆包</span></div>
+            <div class="work__result">结果：得到了一些自己想要的图片。</div>
           </article>
 
-          <article class="tl-item" data-reveal>
-            <div class="tl-when">2026 Q2</div>
-            <h3>遗留服务性能重构</h3>
-            <p>先让 Agent 通读旧代码梳理出调用链，再逐段改写、补测试，我负责审校与把关。</p>
-            <div class="tl-agents">
-              <span class="chip">Cursor</span><span class="chip">Claude</span>
+          <article class="work__item" data-reveal>
+            <div class="work__top">
+              <h3>做了这个网站</h3>
+              <span class="tag">网站开发</span>
             </div>
-            <div class="tl-result">结果：接口 P95 响应从 <b>1.2s 降到 240ms</b>，测试覆盖率从 42% 提到 78%。</div>
+            <p>从零开始，跟 Trae 说清楚我想要什么样的页面、放什么内容，它把代码写出来。中间来回调整了几次样式和文案。</p>
+            <div class="work__agents"><span class="chip">Trae</span></div>
+            <div class="work__result">结果：做出来一个<b>能公开访问的网站</b>，就是你现在打开的这一页。</div>
           </article>
 
-          <article class="tl-item" data-reveal>
-            <div class="tl-when">2026 Q1</div>
-            <h3>产品需求文档从 0 到 1</h3>
-            <p>把口头的产品想法喂给 Agent 先出结构，再逐轮追问补齐边界条件，最后我定稿。</p>
-            <div class="tl-agents">
-              <span class="chip">ChatGPT</span><span class="chip">Claude</span>
+          <article class="work__item" data-reveal>
+            <div class="work__top">
+              <h3>查题目、搞清楚不会的地方</h3>
+              <span class="tag">学习辅助</span>
             </div>
-            <div class="tl-result">结果：3 天内产出可评审的 <b>PRD v1.0</b>，并附带可交互原型说明。</div>
-          </article>
-
-          <article class="tl-item" data-reveal>
-            <div class="tl-when">2025 Q4</div>
-            <h3>会议纪要知识库</h3>
-            <p>把两年多的会议录音批量转写，再用 Agent 分段、抽取决议与待办，最后统一归档。</p>
-            <div class="tl-agents">
-              <span class="chip">Whisper / 听悟</span><span class="chip">Claude</span>
-            </div>
-            <div class="tl-result">结果：<b>180+ 场会议</b>转成结构化纪要，可按关键词检索。</div>
-          </article>
-
-          <article class="tl-item" data-reveal>
-            <div class="tl-when">2025 Q3</div>
-            <h3>数据清洗与周报自动化</h3>
-            <p>用 Agent 写清洗脚本、定义字段规则，再把生成流程固化成定时任务。</p>
-            <div class="tl-agents">
-              <span class="chip">ChatGPT</span><span class="chip">Gemini</span>
-            </div>
-            <div class="tl-result">结果：处理 <b>2400+ 条记录</b>，周报从手工半天变成自动生成。</div>
-          </article>
-
-          <article class="tl-item" data-reveal>
-            <div class="tl-when">2025 Q2</div>
-            <h3>竞品与技术选型调研</h3>
-            <p>让检索型 Agent 并行搜集资料并标注来源，我再交叉验证、收敛结论。</p>
-            <div class="tl-agents">
-              <span class="chip">Deep Research</span>
-            </div>
-            <div class="tl-result">结果：汇总 <b>20+ 来源</b>，输出一份带引用的选型结论文档。</div>
+            <p>遇到不会做的题目就发给 DeepSeek，让它讲思路，再自己顺着推一遍。比只对着答案看要好懂一些。</p>
+            <div class="work__agents"><span class="chip">DeepSeek</span></div>
+            <div class="work__result">结果：把一些原本卡住的题目弄明白了。</div>
           </article>
         </div>
       </div>
     </section>
 
-    <!-- ===== 04 成果 ===== -->
-    <section class="section" id="results">
+    <!-- ===== 04 一些感受 ===== -->
+    <section class="section" id="takeaway">
       <div class="wrap">
         <div class="section__head" data-reveal>
-          <p class="eyebrow">04 / Outcomes</p>
-          <h2>取得的成果</h2>
-          <p>成果不只看数量，更看它是否真的改变了我的工作方式。</p>
+          <p class="eyebrow">04 / 一些感受</p>
+          <h2>用下来的真实感受</h2>
         </div>
 
-        <div class="metric-grid" data-reveal>
-          <div class="metric">
-            <div class="metric__num">80<span class="unit">%</span></div>
-            <div class="metric__label">文档初稿耗时下降</div>
-          </div>
-          <div class="metric">
-            <div class="metric__num">3<span class="unit">×</span></div>
-            <div class="metric__label">单位时间交付量</div>
-          </div>
-          <div class="metric">
-            <div class="metric__num">240<span class="unit">ms</span></div>
-            <div class="metric__label">接口 P95 响应</div>
-          </div>
-          <div class="metric">
-            <div class="metric__num">180<span class="unit">+</span></div>
-            <div class="metric__label">结构化会议纪要</div>
-          </div>
-        </div>
-
-        <div class="split">
-          <figure class="chart-figure" data-reveal>
-            <figcaption>成果类型分布（共 36 项）</figcaption>
-            <div class="chart-box">
-              <div id="chart-results" style="width:100%;min-height:360px"></div>
-            </div>
-          </figure>
-
-          <div data-reveal>
-            <h3 class="subhead" style="margin-top:0">三个层面的变化</h3>
-            <ul class="achieve">
-              <li>
-                <span class="idx">01</span>
-                <span><strong>效率：</strong>文档与方案初稿从「半天」缩短到「一小时以内」，我把省下的时间花在判断与决策上。</span>
-              </li>
-              <li>
-                <span class="idx">02</span>
-                <span><strong>质量：</strong>Agent 产出的代码经我审校后合入主干，<mark class="key">测试覆盖率从 42% 提升到 78%</mark>。</span>
-              </li>
-              <li>
-                <span class="idx">03</span>
-                <span><strong>沉淀：</strong>散落在录音、聊天与文档里的信息被整理成<mark class="key">可检索的知识库</mark>，新人上手时间明显缩短。</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <h3 class="subhead" data-reveal>成果明细</h3>
-        <div class="table-wrap" data-reveal>
-          <table>
-            <thead>
-              <tr>
-                <th>成果</th>
-                <th>类型</th>
-                <th>用到的 Agent</th>
-                <th>交付形式</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>个人 Agent 作品集网站</td>
-                <td>代码与功能</td>
-                <td>Trae · Claude</td>
-                <td>线上站点</td>
-              </tr>
-              <tr>
-                <td>遗留服务性能重构</td>
-                <td>代码与功能</td>
-                <td>Cursor · Claude</td>
-                <td>合入主干的 PR</td>
-              </tr>
-              <tr>
-                <td>产品需求文档 v1.0</td>
-                <td>交付文档</td>
-                <td>ChatGPT · Claude</td>
-                <td>可评审 PRD</td>
-              </tr>
-              <tr>
-                <td>会议纪要知识库</td>
-                <td>数据与分析</td>
-                <td>Whisper / 听悟 · Claude</td>
-                <td>可检索知识库</td>
-              </tr>
-              <tr>
-                <td>数据周报自动化</td>
-                <td>自动化流程</td>
-                <td>ChatGPT · Gemini</td>
-                <td>定时任务 + 报告</td>
-              </tr>
-              <tr>
-                <td>技术选型调研报告</td>
-                <td>交付文档</td>
-                <td>Deep Research</td>
-                <td>带引用的文档</td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="note" data-reveal>
+          <p>这些工具确实好用，但也不是什么都会。给它的要求说得越清楚，出来的结果就越接近你想要的；说得含糊，就得来回改好几遍。</p>
+          <p>所以我一般会把它当成<mark class="key">一个愿意陪你反复试的帮手</mark>——它负责出草稿，好不好的判断还是得自己来。</p>
+          <p>还有就是，别把它想得太神。像我这个网站，做出来就是很简单一个页面，但它确实帮我省了写代码的功夫，这就够了。</p>
         </div>
       </div>
     </section>
@@ -1138,22 +640,18 @@
   <footer class="site-footer" id="contact">
     <div class="wrap">
       <p class="eyebrow" style="color:rgba(242,240,234,0.6)">Contact</p>
-      <h2>想聊聊怎么把 Agent 用进日常？</h2>
-      <p>如果你也在做类似的事，或者想了解上面某个任务的具体做法，欢迎直接找我。下面两个联系方式是占位内容，记得换成你自己的。</p>
+      <h2>就这样，谢谢你看完</h2>
+      <p>如果你也在试着用这些工具，或者想问上面某个东西是怎么弄的，可以找我。</p>
       <div class="foot-links">
-        <a href="mailto:you@example.com">you@example.com</a>
-        <a href="https://github.com/yourname" target="_blank" rel="noopener">github.com/yourname</a>
+        <a href="https://github.com/STqingfengOwO" target="_blank" rel="noopener">github.com/STqingfengOwO</a>
       </div>
       <div class="foot-meta">
-        <span>Agent Work Archive · 2026</span>
-        <span>本站为静态页面，可直接部署到任意静态托管</span>
+        <span>用 Trae 做的一个小页面</span>
+        <span>静态页面 · 部署在 GitHub Pages</span>
       </div>
     </div>
   </footer>
 
-  <!-- Shared JS -->
-  <script src="./_shared/js/echarts.min.js"></script>
-  <script src="./assets/charts.js"></script>
   <script src="./assets/app.js"></script>
 </body>
 </html>
