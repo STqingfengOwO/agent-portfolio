@@ -426,6 +426,33 @@
       .card-grid, .summary { grid-template-columns: 1fr; }
     }
 
+    /* === Homework entry === */
+    .hw-card {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+      align-items: center;
+      margin-top: 32px;
+      padding: 26px 28px;
+      background: var(--card);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius);
+      text-decoration: none;
+      transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    .hw-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 14px 30px -22px rgba(20, 22, 27, 0.45);
+    }
+    .hw-card h3 { font-size: 1.12rem; }
+    .hw-card p { color: var(--muted); font-size: 0.9rem; margin-top: 8px; max-width: 620px; }
+    .hw-card__tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .hw-card__go { font-family: var(--font-mono); font-size: 0.78rem; color: var(--accent); white-space: nowrap; font-weight: 700; }
+    @media (max-width: 640px) {
+      .hw-card { grid-template-columns: 1fr; padding: 22px; }
+    }
+
     /* === Print === */
     @media print {
       .nav, .site-footer::before { display: none !important; }
@@ -468,6 +495,7 @@
       <div class="nav__links">
         <a href="#tools">工具</a>
         <a href="#work">做过的事</a>
+        <a href="#homework">作业</a>
         <a href="#takeaway">一些感受</a>
       </div>
     </div>
@@ -601,11 +629,36 @@
       </div>
     </section>
 
-    <!-- ===== 04 一些感受 ===== -->
+    <!-- ===== 04 作业 ===== -->
+    <section class="section" id="homework">
+      <div class="wrap">
+        <div class="section__head" data-reveal>
+          <p class="eyebrow">04 / Homework</p>
+          <h2>第 15 节作业</h2>
+          <p>MLP 学习参数的实现与可视化，做成了一个可以自己动手的页面。</p>
+        </div>
+
+        <a class="hw-card" href="./mlp.html" data-reveal>
+          <div>
+            <h3>MLP 的学习参数是怎么变的</h3>
+            <p>用 2—2—1 网络学习 XOR：手动实现前向与反向传播，用 Adam 训练 300 轮，把权重、偏置、决策边界和隐藏层表示的变化实时画出来。</p>
+            <div class="hw-card__tags">
+              <span class="chip">2—2—1 MLP</span>
+              <span class="chip">反向传播 + Adam</span>
+              <span class="chip">6 张可视化图表</span>
+              <span class="chip">纯前端实现</span>
+            </div>
+          </div>
+          <span class="hw-card__go">打开作业 →</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- ===== 05 一些感受 ===== -->
     <section class="section" id="takeaway">
       <div class="wrap">
         <div class="section__head" data-reveal>
-          <p class="eyebrow">04 / 一些感受</p>
+          <p class="eyebrow">05 / 一些感受</p>
           <h2>用下来的真实感受</h2>
         </div>
 
