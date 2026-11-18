@@ -449,6 +449,9 @@
     .hw-card p { color: var(--muted); font-size: 0.9rem; margin-top: 8px; max-width: 620px; }
     .hw-card__tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
     .hw-card__go { font-family: var(--font-mono); font-size: 0.78rem; color: var(--accent); white-space: nowrap; font-weight: 700; }
+    .hw-card--static { cursor: default; }
+    .hw-card--static:hover { border-color: var(--rule); transform: none; box-shadow: none; }
+    .hw-card--static .hw-card__go { color: var(--muted); }
     @media (max-width: 640px) {
       .hw-card { grid-template-columns: 1fr; padding: 22px; }
     }
@@ -478,7 +481,7 @@
   <!-- ===== Hero ===== -->
   <header class="hero" id="top">
     <div class="wrap hero__inner">
-      <p class="hero__kicker">A small record</p>
+      <p class="hero__kicker">Homework 01 · 个人作品集网站</p>
       <h1 class="hero__title">我用过的一些<br>AI 工具</h1>
       <p class="hero__lead">没什么了不起的事，就是把 AI 工具当日常帮手用一用：生成几张图片、做了这个网站、查了些题目。</p>
       <div class="hero__meta">
@@ -634,13 +637,26 @@
       <div class="wrap">
         <div class="section__head" data-reveal>
           <p class="eyebrow">04 / Homework</p>
-          <h2>第 15 节作业</h2>
-          <p>MLP 学习参数的实现与可视化，做成了一个可以自己动手的页面。</p>
+          <h2>两次作业</h2>
+          <p>课程布置的两次作业，分开列在这里，都可以直接打开看。</p>
         </div>
+
+        <article class="hw-card hw-card--static" data-reveal>
+          <div>
+            <h3>第一次作业 · 个人作品集网站</h3>
+            <p>用 Trae 从零做出这个网站：列出用过的 AI 工具、做过的事和结果，再部署到 GitHub Pages，让别人也能打开。也就是你现在正在看的这一页。</p>
+            <div class="hw-card__tags">
+              <span class="chip">个人作品集</span>
+              <span class="chip">HTML + CSS</span>
+              <span class="chip">GitHub Pages 部署</span>
+            </div>
+          </div>
+          <span class="hw-card__go">你正在浏览 →</span>
+        </article>
 
         <a class="hw-card" href="./mlp.html" data-reveal>
           <div>
-            <h3>MLP 的学习参数是怎么变的</h3>
+            <h3>第二次作业 · MLP 的学习参数是怎么变的</h3>
             <p>用 2—2—1 网络学习 XOR：手动实现前向与反向传播，用 Adam 训练 300 轮，把权重、偏置、决策边界和隐藏层表示的变化实时画出来。</p>
             <div class="hw-card__tags">
               <span class="chip">2—2—1 MLP</span>
