@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-tone="plain">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>第 15 节作业 · MLP 学习参数的实现与可视化</title>
-<meta name="description" content="2-2-1 MLP 学习 XOR：用反向传播和 Adam 训练，实时观察权重、偏置、决策边界和隐藏层表示的变化。">
+<title>第 15 节作业 · MLP 是怎么学会 XOR 的</title>
+<meta name="description" content="2-2-1 MLP 学习 XOR：从两扇门的故事开始，手动调参、拆开七步计算、走一步梯度，再看完整 300 轮训练。">
 <style>
   @font-face {
     font-family: 'Instrument Sans';
@@ -20,11 +20,6 @@
     font-family: 'GeistMono';
     src: url('./_shared/fonts/GeistMono-Regular.ttf') format('truetype');
     font-weight: 400; font-display: swap;
-  }
-  @font-face {
-    font-family: 'BigShoulders';
-    src: url('./_shared/fonts/BigShoulders-Bold.ttf') format('truetype');
-    font-weight: 700; font-display: swap;
   }
 </style>
 <style>
@@ -43,7 +38,6 @@
     --on-deep: #F2F0EA;
     --font: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
     --font-mono: 'GeistMono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    --font-display: 'BigShoulders', 'Instrument Sans', sans-serif;
     --max: 1120px;
     --radius: 14px;
   }
@@ -90,7 +84,7 @@
     text-transform: uppercase; color: rgba(242,240,234,.62); font-weight: 700;
   }
   .hero__title { font-size: clamp(2rem, 5.2vw, 3.7rem); letter-spacing: -.03em; margin-top: 18px; max-width: 18em; }
-  .hero__lead { font-size: clamp(.98rem, 1.5vw, 1.08rem); color: rgba(242,240,234,.72); max-width: 660px; margin-top: 22px; }
+  .hero__lead { font-size: clamp(.98rem, 1.5vw, 1.08rem); color: rgba(242,240,234,.72); max-width: 680px; margin-top: 22px; }
   .hero__meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
   .chip {
     display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px;
@@ -103,52 +97,103 @@
   /* ===== Nav ===== */
   .nav {
     position: sticky; top: 0; z-index: 50;
-    background: rgba(250,249,246,.92); backdrop-filter: blur(10px);
+    background: rgba(250,249,246,.94); backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--rule);
   }
-  .nav__inner { display: flex; align-items: center; gap: 22px; height: 62px; }
+  .nav__inner { display: flex; align-items: center; gap: 14px; height: 62px; }
   .nav__brand {
     display: inline-flex; align-items: center; gap: 9px;
-    font-family: var(--font-mono); font-size: .78rem; font-weight: 700;
+    font-family: var(--font-mono); font-size: .76rem; font-weight: 700;
     letter-spacing: .1em; text-transform: uppercase; color: var(--ink); text-decoration: none;
     flex: none;
   }
   .nav__brand i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: block; }
-  .nav__links { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; margin-left: auto; }
+  .nav__links { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; margin-left: auto; }
   .nav__links::-webkit-scrollbar { display: none; }
   .nav__links a {
-    font-size: .88rem; color: var(--muted); text-decoration: none;
-    padding: 7px 12px; border-radius: 8px; white-space: nowrap;
+    font-size: .84rem; color: var(--muted); text-decoration: none;
+    padding: 7px 9px; border-radius: 8px; white-space: nowrap;
     transition: color .15s ease, background .15s ease;
   }
   .nav__links a:hover { color: var(--ink); background: var(--bg2); }
   .nav__links a.is-active { color: var(--accent); background: rgba(59,91,255,.08); font-weight: 600; }
+  .tone-switch {
+    display: flex; gap: 2px; padding: 3px; flex: none;
+    border: 1px solid var(--rule-strong); border-radius: 999px; background: var(--card);
+  }
+  .tone-btn {
+    font-family: var(--font-mono); font-size: .68rem; line-height: 1.4;
+    border: 0; background: none; color: var(--muted); cursor: pointer;
+    padding: 4px 8px; border-radius: 999px;
+  }
+  .tone-btn[aria-pressed="true"] { background: var(--accent); color: #fff; }
 
+  /* ===== Tone ===== */
+  .tone-label {
+    display: none; font-family: var(--font-mono); font-size: .64rem;
+    letter-spacing: .12em; color: var(--accent); margin-bottom: 4px;
+  }
+  html[data-tone="plain"] .tone-strict { display: none; }
+  html[data-tone="strict"] .tone-plain { display: none; }
+  html[data-tone="both"] .tone-label { display: block; }
+  html[data-tone="both"] .tone-plain { padding-bottom: 10px; border-bottom: 1px dashed var(--rule); margin-bottom: 10px; }
+  .tone-strict p { color: var(--ink-soft); }
+</style>
+<style>
   /* ===== Sections ===== */
   .section { padding: 72px 0; }
   .section--tint { background: var(--bg2); }
-  .section__head { max-width: 720px; }
+  .section__head { max-width: 760px; }
   .section__head h2 { font-size: clamp(1.5rem, 3vw, 2.1rem); margin-top: 12px; }
   .section__head p { color: var(--muted); margin-top: 14px; }
-  .prose { max-width: 760px; }
+  .prose { max-width: 780px; }
   .prose p + p { margin-top: 14px; }
+  .prose h3 { font-size: 1.05rem; margin-top: 26px; }
+
+  /* ===== Story ===== */
+  .qa .eyebrow { text-transform: none; letter-spacing: .08em; }
+  .story-map {
+    display: flex; flex-wrap: wrap; align-items: stretch; justify-content: center;
+    gap: 12px; margin-top: 32px;
+  }
+  .story-col {
+    background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius);
+    padding: 14px; display: grid; gap: 8px; min-width: 150px; flex: 1 1 150px; max-width: 220px;
+  }
+  .story-col > span:first-child {
+    font-family: var(--font-mono); font-size: .66rem; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--muted); text-align: center;
+  }
+  .story-box {
+    border: 1px solid var(--rule); border-radius: 9px; padding: 9px 10px;
+    text-align: center; font-size: .86rem; background: var(--bg);
+  }
+  .story-box b { font-family: var(--font-mono); font-weight: 700; }
+  .story-box--on { border-color: rgba(59,91,255,.4); background: rgba(59,91,255,.06); }
+  .story-arrow { align-self: center; font-family: var(--font-mono); color: var(--muted); font-size: 1.1rem; }
+  .story-note { font-size: .82rem; color: var(--muted); text-align: center; margin-top: 10px; }
+
+  .xor-table { max-width: 420px; margin-top: 26px; }
+  .xor-table table { border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; background: var(--card); }
+  .xor-table th, .xor-table td { text-align: center; padding: 9px 10px; }
+  .xor-table td.lit { color: var(--accent); font-weight: 700; }
+
+  .qa-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 34px; }
+  .qa {
+    background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius);
+    padding: 20px;
+  }
+  .qa h3 { font-size: 1rem; margin-top: 6px; }
+  .qa p { font-size: .9rem; color: var(--ink-soft); margin-top: 8px; }
 
   /* ===== Info grid ===== */
   .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 34px; }
-  .info {
-    background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius);
-    padding: 18px 18px 16px;
-  }
+  .info { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: 18px 18px 16px; }
   .info__k { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
   .info__v { margin-top: 8px; font-weight: 700; font-size: 1.02rem; }
   .info__s { margin-top: 4px; font-size: .82rem; color: var(--muted); }
 
-  /* ===== Lab ===== */
-  .lab { margin-top: 36px; }
-  .controls {
-    background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius);
-    padding: 16px 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px;
-  }
+  /* ===== Buttons / controls ===== */
   .btn {
     font-family: var(--font); font-size: .88rem; font-weight: 600;
     border: 1px solid var(--rule-strong); background: var(--card); color: var(--ink);
@@ -158,16 +203,30 @@
   .btn:hover { background: var(--bg2); }
   .btn--primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   .btn--primary:hover { background: #2f4ce0; }
+  .btn--sm { padding: 6px 12px; font-size: .78rem; }
   .ctl-group { display: flex; align-items: center; gap: 8px; font-size: .84rem; color: var(--muted); }
   .ctl-group select {
     font-family: var(--font-mono); font-size: .82rem; padding: 7px 9px;
     border: 1px solid var(--rule-strong); border-radius: 8px; background: var(--card); color: var(--ink);
   }
-  input[type="range"] { accent-color: var(--accent); width: 150px; }
+  input[type="range"] { accent-color: var(--accent); }
   .spacer { flex: 1 1 auto; }
   .status { font-family: var(--font-mono); font-size: .78rem; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: 6px 16px; }
   .status b { color: var(--accent); }
 
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip-btn {
+    font-family: var(--font-mono); font-size: .78rem; padding: 7px 12px;
+    border: 1px solid var(--rule-strong); border-radius: 8px; background: var(--card);
+    color: var(--ink-soft); cursor: pointer;
+  }
+  .chip-btn[aria-pressed="true"] { border-color: var(--accent); background: rgba(59,91,255,.08); color: var(--accent); font-weight: 700; }
+  /* ===== Layout / panels ===== */
+  .lab { margin-top: 36px; }
+  .controls {
+    background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius);
+    padding: 16px 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px;
+  }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
   .panel {
     background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius);
@@ -175,22 +234,20 @@
   }
   .panel__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 6px; flex-wrap: wrap; }
   .panel__head h3 { font-size: .98rem; }
-  .panel__head span { font-family: var(--font-mono); font-size: .7rem; color: var(--muted); }
+  .panel__head span { font-family: var(--font-mono); font-size: .68rem; color: var(--muted); }
   .panel__note { font-size: .8rem; color: var(--muted); margin-top: 6px; }
   canvas { width: 100%; display: block; }
-  #c-net { height: 292px; }
   #net { width: 100%; height: 292px; display: block; }
   #c-boundary, #c-hidden { height: 300px; }
-  #c-loss { height: 228px; }
-  #c-weights, #c-biases { height: 228px; }
+  #c-loss, #c-weights, #c-biases { height: 228px; }
   .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; font-family: var(--font-mono); font-size: .7rem; color: var(--muted); }
   .legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 
-  /* ===== Table ===== */
+  /* ===== Tables ===== */
   .table-wrap { overflow-x: auto; margin-top: 16px; }
   table { width: 100%; border-collapse: collapse; font-size: .86rem; }
   th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
-  th { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  th { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
   td.num { font-family: var(--font-mono); }
   tr:last-child td { border-bottom: 0; }
   .pos { color: var(--accent); }
@@ -198,54 +255,145 @@
   .bad { color: var(--accent2); font-weight: 600; }
   .good { color: #1F7A5C; font-weight: 600; }
 
-  /* ===== Insight cards ===== */
-  .insights { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 32px; }
-  .insight { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: 20px; }
-  .insight h3 { font-size: 1rem; }
-  .insight p { font-size: .9rem; color: var(--ink-soft); margin-top: 10px; }
-  .insight .eyebrow { font-size: .64rem; }
-
   /* ===== Code ===== */
+  .code-head { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-top: 34px; flex-wrap: wrap; }
+  .code-head h3 { font-size: 1rem; }
+  .code-head span { font-family: var(--font-mono); font-size: .72rem; color: var(--muted); }
   pre {
     background: #0E1014; color: #E8E6E0; border-radius: var(--radius);
-    padding: 20px 20px 18px; overflow-x: auto; font-family: var(--font-mono);
-    font-size: .78rem; line-height: 1.72; margin-top: 14px;
-    border: 1px solid #232830;
+    padding: 20px 22px; margin-top: 12px; overflow-x: auto;
+    font-family: var(--font-mono); font-size: .78rem; line-height: 1.72;
   }
-  pre .c { color: #7F8A99; }
-  pre .k { color: #8FB2FF; }
-  .code-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 26px; }
-  .code-head h3 { font-size: .98rem; }
-  .code-head span { font-family: var(--font-mono); font-size: .7rem; color: var(--muted); }
+  pre code { font-family: inherit; }
+  pre .c { color: #8A93A3; }
 
   /* ===== Footer ===== */
-  .site-footer { background: var(--deep); color: rgba(242,240,234,.78); padding: 66px 0 44px; position: relative; overflow: hidden; }
-  .site-footer::before {
-    content: ''; position: absolute; inset: 0;
-    background: radial-gradient(circle at 88% 8%, rgba(59,91,255,.22), transparent 46%);
-  }
-  .site-footer .wrap { position: relative; z-index: 1; }
-  .site-footer h2 { color: var(--on-deep); font-size: clamp(1.5rem, 3vw, 2rem); margin-top: 12px; max-width: 22em; }
-  .site-footer p { margin-top: 16px; max-width: 620px; font-size: .94rem; }
-  .foot-meta {
-    margin-top: 42px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,.14);
-    display: flex; flex-wrap: wrap; gap: 6px 24px;
-    font-family: var(--font-mono); font-size: .72rem; color: rgba(242,240,234,.5);
-  }
+  .site-footer { background: var(--deep); color: rgba(242,240,234,.62); padding: 52px 0 44px; }
+  .site-footer h2 { color: var(--on-deep); font-size: 1.02rem; font-weight: 600; }
+  .site-footer p { font-size: .86rem; margin-top: 10px; max-width: 620px; }
+  .foot-meta { display: flex; flex-wrap: wrap; gap: 10px 26px; margin-top: 22px; font-family: var(--font-mono); font-size: .7rem; color: rgba(242,240,234,.42); }
 
+  section[id], #lab-viz { scroll-margin-top: 76px; }
+
+  /* ===== Manual ===== */
+  .manual-grid { display: grid; grid-template-columns: 390px 1fr; gap: 16px; margin-top: 34px; }
+  .pgrid { display: grid; gap: 9px; margin-top: 4px; }
+  .pslider { display: grid; grid-template-columns: 58px 1fr 64px; align-items: center; gap: 10px; }
+  .pslider__name { font-family: var(--font-mono); font-size: .78rem; color: var(--ink-soft); }
+  .pslider__name small { display: block; font-size: .62rem; color: var(--muted); letter-spacing: .02em; }
+  .pslider input[type="range"] { width: 100%; }
+  .pslider__val { font-family: var(--font-mono); font-size: .76rem; text-align: right; color: var(--accent); }
+  .manual-actions { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--rule); flex-wrap: wrap; }
+  .manual-actions span { font-size: .76rem; color: var(--muted); }
+  .pgrid .is-w { grid-column: 1 / -1; font-family: var(--font-mono); font-size: .64rem; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; margin-top: 4px; }
+  #net-manual { width: 100%; height: 292px; display: block; }
+  #c-m-boundary, #c-m-hidden { height: 300px; }
+  tbody tr.is-sel td { background: rgba(59,91,255,.06); }
+  tbody tr.is-sel td:first-child { color: var(--accent); font-weight: 700; }
+  tbody tr[data-sample] { cursor: pointer; }
+
+  /* ===== Steps ===== */
+  .steps-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 30px; }
+  .steps-hint { font-family: var(--font-mono); font-size: .72rem; color: var(--muted); }
+  .steps { display: grid; gap: 12px; margin-top: 20px; }
+  .step {
+    display: grid; grid-template-columns: 42px 1fr; gap: 14px;
+    background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+  .step__n {
+    font-family: var(--font-mono); font-size: .78rem; font-weight: 700; color: var(--accent);
+    border: 1px solid rgba(59,91,255,.3); background: rgba(59,91,255,.06);
+    border-radius: 8px; width: 32px; height: 26px; display: grid; place-items: center;
+  }
+  .step h3 { font-size: .96rem; }
+  .step p { font-size: .88rem; color: var(--ink-soft); margin-top: 6px; }
+  .formula {
+    font-family: var(--font-mono); font-size: .78rem; line-height: 1.9;
+    background: var(--bg); border: 1px solid var(--rule); border-radius: 9px;
+    padding: 10px 12px; margin-top: 9px; overflow-x: auto; white-space: pre-wrap;
+  }
+  .formula b { color: var(--accent); font-weight: 700; }
+  .formula .op { color: var(--muted); }
+  .foot-note { font-size: .8rem; color: var(--muted); margin-top: 18px; }
+
+  /* ===== One step ===== */
+  .one-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 30px; }
+  .one-grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 16px; margin-top: 16px; }
+  .kv { display: grid; gap: 3px; margin-top: 4px; }
+  .kv__row { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 8px 2px; border-bottom: 1px dashed var(--rule); }
+  .kv__row:last-child { border-bottom: 0; }
+  .kv__k { font-size: .84rem; color: var(--muted); }
+  .kv__v { font-family: var(--font-mono); font-size: .86rem; font-weight: 700; text-align: right; }
+  .kv__v small { font-weight: 400; color: var(--muted); }
+
+  /* ===== Anchors ===== */
+  .anchors-head { margin-top: 52px; max-width: 720px; }
+  .anchors-head h3 { font-size: 1.15rem; }
+  .anchors-head p { color: var(--muted); font-size: .88rem; margin-top: 8px; }
+  .anchors { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 22px; }
+  .anchor {
+    background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius);
+    padding: 16px; display: flex; flex-direction: column; gap: 8px;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .anchor:hover { border-color: var(--rule-strong); }
+  .anchor.is-passed { border-color: rgba(59,91,255,.35); }
+  .anchor.is-current { box-shadow: 0 0 0 2px rgba(59,91,255,.18); border-color: var(--accent); }
+  .anchor__top { display: flex; align-items: baseline; gap: 8px; font-family: var(--font-mono); font-size: .68rem; color: var(--muted); }
+  .anchor__n { font-size: 1rem; font-weight: 700; color: var(--accent); }
+  .anchor h3 { font-size: .96rem; }
+  .anchor p { font-size: .84rem; color: var(--ink-soft); }
+  .anchor__stats {
+    font-family: var(--font-mono); font-size: .68rem; line-height: 1.6; color: var(--muted);
+    background: var(--bg); border: 1px solid var(--rule); border-radius: 8px; padding: 7px 9px;
+    margin-top: auto;
+  }
+  .anchor .btn { align-self: flex-start; }
+  .anchor .tone-label { margin-bottom: 2px; }
+
+  /* ===== Closing ===== */
+  .closing { background: var(--deep); color: rgba(242,240,234,.84); border-radius: var(--radius); padding: 28px 26px; margin-top: 36px; }
+  .closing h3 { color: var(--on-deep); font-size: 1.2rem; margin-top: 8px; }
+  .closing p { margin-top: 12px; max-width: 760px; font-size: .92rem; }
+  .closing p b { color: #fff; }
+  .closing .btn { background: transparent; border-color: rgba(255,255,255,.3); color: var(--on-deep); }
+  .closing .btn:hover { background: rgba(255,255,255,.1); }
+
+  @media (max-width: 1000px) {
+    .anchors { grid-template-columns: repeat(2, 1fr); }
+  }
   @media (max-width: 900px) {
     .info-grid { grid-template-columns: 1fr 1fr; }
     .grid2 { grid-template-columns: 1fr; }
-    .insights { grid-template-columns: 1fr; }
+    .qa-grid { grid-template-columns: 1fr; }
+    .manual-grid { grid-template-columns: 1fr; }
+    .one-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 700px) {
+    .nav__inner { flex-wrap: wrap; height: auto; padding: 8px 0 6px; row-gap: 4px; }
+    .nav__brand { order: 0; }
+    .tone-switch { order: 1; margin-left: auto; }
+    .nav__links { order: 2; flex: 1 0 100%; margin-left: 0; }
+    section[id], #lab-viz { scroll-margin-top: 118px; }
   }
   @media (max-width: 560px) {
     .wrap { padding: 0 18px; }
     .section { padding: 52px 0; }
     .info-grid { grid-template-columns: 1fr; }
-    .nav__inner { height: 56px; gap: 10px; }
-    .nav__brand { font-size: .7rem; }
+    .nav__inner { height: auto; gap: 8px; }
+    .nav__brand { font-size: .68rem; }
+    .tone-btn { padding: 3px 6px; font-size: .62rem; }
     .controls { padding: 14px; }
     input[type="range"] { width: 110px; }
+    .pslider { grid-template-columns: 52px 1fr 56px; }
+    #manual-table { font-size: .72rem; }
+    #manual-table th, #manual-table td { padding: 7px 5px; }
+    #manual-table th:nth-child(5), #manual-table td:nth-child(5),
+    #manual-table th:nth-child(7), #manual-table td:nth-child(7) { display: none; }
+    .anchors { grid-template-columns: 1fr; }
+    .step { grid-template-columns: 1fr; }
+    .step__n { margin-bottom: 2px; }
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
@@ -258,13 +406,14 @@
 <header class="hero">
   <div class="wrap hero__inner">
     <p class="hero__kicker">Homework 02 · 第二次作业 / 第 15 节</p>
-    <h1 class="hero__title">MLP 的学习参数<br>是怎么变的</h1>
-    <p class="hero__lead">用课堂上的 2—2—1 网络学习 XOR：2 个输入、2 个 sigmoid 隐藏单元、1 个输出，二元交叉熵 + Adam，学习率 0.03，训练 300 轮。下面这页会真的训练一遍，并把每一步的参数画出来。</p>
+    <h1 class="hero__title">MLP 是怎么学会 XOR 的</h1>
+    <p class="hero__lead">两扇门、两位门卫、一盏灯。这页从这个小故事出发，先手动调参数，再把一次计算拆成七步，然后只走一步梯度，最后看完整 300 轮训练。所有数字都是浏览器里现算的。</p>
     <div class="hero__meta">
+      <span class="chip chip--dark">2 → 2 → 1</span>
       <span class="chip chip--dark">4 个 XOR 样本</span>
       <span class="chip chip--dark">9 个可学习参数</span>
-      <span class="chip chip--dark">300 轮 · 整批训练</span>
-      <span class="chip chip--dark">纯前端实现，无外部依赖</span>
+      <span class="chip chip--dark">300 轮 · 整批</span>
+      <span class="chip chip--dark">纯前端，无外部依赖</span>
     </div>
   </div>
 </header>
@@ -272,64 +421,217 @@
 <nav class="nav" aria-label="页面导航">
   <div class="wrap nav__inner">
     <a class="nav__brand" href="./index.html"><i aria-hidden="true"></i>My Tools</a>
-    <div class="nav__links">
-      <a href="#task">任务</a>
-      <a href="#lab" class="is-active">实验台</a>
-      <a href="#params">参数解读</a>
-      <a href="#code">实现</a>
+    <div class="nav__links" id="nav-links">
+      <a href="#story">故事</a>
+      <a href="#manual">调参数</a>
+      <a href="#steps">七步</a>
+      <a href="#one">学一步</a>
+      <a href="#lab">训练</a>
+      <a href="#params">解读</a>
+      <a href="#lrsec">学习率</a>
+      <a href="#code">代码</a>
       <a href="./index.html">← 作业列表</a>
+    </div>
+    <div class="tone-switch" role="group" aria-label="解释版本">
+      <button class="tone-btn" type="button" data-tone-btn="plain" aria-pressed="true">通俗</button>
+      <button class="tone-btn" type="button" data-tone-btn="strict" aria-pressed="false">严谨</button>
+      <button class="tone-btn" type="button" data-tone-btn="both" aria-pressed="false">对照</button>
     </div>
   </div>
 </nav>
 
 <main>
 
-  <!-- 01 任务 -->
-  <section class="section section--tint" id="task">
+  <!-- 01 背景与故事 -->
+  <section class="section section--tint" id="story">
     <div class="wrap">
       <div class="section__head">
-        <p class="eyebrow">01 / 任务</p>
-        <h2>要解决什么，用什么设置</h2>
-        <p>XOR 的四个样本中，(0,1) 和 (1,0) 输出 1，(0,0) 和 (1,1) 输出 0。它们在平面上交错排列，一条直线分不开，所以单层感知器做不到；加一个隐藏层，把输入先变成中间特征，输出层再用一条直线就能分开。</p>
+        <p class="eyebrow">01 / 背景与故事</p>
+        <h2>两扇门、两位门卫、一盏灯</h2>
+        <p>先把 XOR 变成一个能看见的场景。故事只是入口，后面的数学一点都不会少。</p>
       </div>
 
-      <div class="info-grid">
-        <div class="info">
-          <div class="info__k">Structure</div>
-          <div class="info__v">2 → 2 → 1</div>
-          <div class="info__s">两个 sigmoid 隐藏单元</div>
+      <div class="prose" style="margin-top:26px">
+        <p>想象一个门厅：左边一扇门 <b>x₁</b>，右边一扇门 <b>x₂</b>，开着记 1、关着记 0。天花板上有一盏灯，亮记 1、灭记 0。规则很别扭——<mark class="key">只有一扇门开着时，灯才亮</mark>；两扇都关、或者两扇都开，灯都是灭的。这就是 XOR（异或）。</p>
+        <p>门口站着两位门卫。甲只负责「左门开、右门关」，乙只负责「左门关、右门开」。谁看到自己负责的情况，谁就举手（输出接近 1）。灯泡最后把两人的手综合一下：有人举手，灯就亮。</p>
+      </div>
+
+      <div class="story-map" aria-hidden="true">
+        <div class="story-col">
+          <span>输入 · 两扇门</span>
+          <div class="story-box story-box--on">左门 <b>x₁</b></div>
+          <div class="story-box">右门 <b>x₂</b></div>
         </div>
-        <div class="info">
-          <div class="info__k">Loss</div>
-          <div class="info__v">二元交叉熵</div>
-          <div class="info__s">直接作用在 logits 上</div>
+        <span class="story-arrow">→</span>
+        <div class="story-col">
+          <span>隐藏层 · 两位门卫</span>
+          <div class="story-box">门卫甲 <b>h₁</b></div>
+          <div class="story-box">门卫乙 <b>h₂</b></div>
         </div>
-        <div class="info">
-          <div class="info__k">Optimizer</div>
-          <div class="info__v">Adam · lr = 0.03</div>
-          <div class="info__s">β₁ 0.9 / β₂ 0.999</div>
+        <span class="story-arrow">→</span>
+        <div class="story-col">
+          <span>输出 · 灯</span>
+          <div class="story-box story-box--on">灯亮？<b>ŷ</b></div>
+          <div class="story-box">两人任一举手</div>
         </div>
-        <div class="info">
-          <div class="info__k">Training</div>
-          <div class="info__v">300 轮 · 整批</div>
-          <div class="info__s">4 个样本一起更新一次</div>
+      </div>
+      <p class="story-note">四位门卫/灯的组合规则，就是下面这张真值表。</p>
+
+      <div class="table-wrap xor-table">
+        <table>
+          <thead><tr><th>左门 x₁</th><th>右门 x₂</th><th>灯 y</th></tr></thead>
+          <tbody>
+            <tr><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+            <tr><td class="num">0</td><td class="num">1</td><td class="num lit">1</td></tr>
+            <tr><td class="num">1</td><td class="num">0</td><td class="num lit">1</td></tr>
+            <tr><td class="num">1</td><td class="num">1</td><td class="num">0</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="prose" style="margin-top:30px">
+        <p>为什么非要两位门卫？只派一个人（单层、只有一条直线）做不到：四个情况在平面上是交叉站位的，一刀切下去总会切错两个。两位门卫各自盯一个角落，灯再把他们加起来，问题就被拆成了两个简单判断。</p>
+      </div>
+
+      <div class="qa-grid">
+        <article class="qa">
+          <p class="eyebrow">为了什么</p>
+          <h3>一条直线分不开</h3>
+          <div class="tone-plain"><span class="tone-label">通俗版</span><p>XOR 的四个点在平面上交叉站着，任何一条直线都没法把「亮」和「灭」分到两边。MLP 要解决的就是这种「一刀切不动」的问题。</p></div>
+          <div class="tone-strict"><span class="tone-label">严谨版</span><p>单层感知机的决策边界是输入空间中的一张超平面。XOR 的正负样本不线性可分，所以单层模型不可能以零误差分类。</p></div>
+        </article>
+        <article class="qa">
+          <p class="eyebrow">为什么可以</p>
+          <h3>隐藏层换了一组坐标</h3>
+          <div class="tone-plain"><span class="tone-label">通俗版</span><p>隐藏层把原来的两个数字换成两个新数字（h₁、h₂）。换完之后，本来交叉的四个点被摆到了能用直线分开的位置。这个「换法」不是人写死的，是 W、b 学出来的。</p></div>
+          <div class="tone-strict"><span class="tone-label">严谨版</span><p>隐藏层计算 h = σ(Wx + b)，把输入映射到新的特征空间。只要隐藏单元足够，这个映射可以把 XOR 的四个样本送到线性可分的位置，输出层只需在新空间里确定一个线性判别面。</p></div>
+        </article>
+        <article class="qa">
+          <p class="eyebrow">怎么做</p>
+          <h3>四步循环 300 次</h3>
+          <div class="tone-plain"><span class="tone-label">通俗版</span><p>前向算出预测 → 和答案比、算损失 → 反向把责任分回每个参数（梯度）→ 按梯度把参数挪一小步。重复 300 次，门卫就慢慢站对了位置。</p></div>
+          <div class="tone-strict"><span class="tone-label">严谨版</span><p>前向传播得到 logits 与概率；以二元交叉熵为损失；反向传播用链式法则求各参数偏导；Adam 依据一阶、二阶矩估计做自适应步长更新。整批 4 个样本每轮更新一次。</p></div>
+        </article>
+      </div>
+    </div>
+  </section>
+  <!-- 02 手动调参 -->
+  <section class="section" id="manual">
+    <div class="wrap">
+      <div class="section__head">
+        <p class="eyebrow">02 / 手动调参</p>
+        <h2>先亲手拧一遍这 9 个旋钮</h2>
+        <p>训练之前，先自己调。每个滑杆对应一个可学习参数，拖动时右边的网络、决策边界、隐藏层坐标会立刻重算。你会很快发现：随便调通常分不开，凑出正确的形状并不容易。</p>
+      </div>
+
+      <div class="manual-grid">
+        <div class="panel">
+          <div class="panel__head"><h3>9 个参数</h3><span>拖动即重算</span></div>
+          <div class="pgrid" id="slider-box"></div>
+          <div class="manual-actions">
+            <button class="btn btn--sm" type="button" id="manual-reset">恢复初值</button>
+            <span id="manual-hint">初值来自课堂代码</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel__head"><h3>网络与当前样本</h3><span>线宽 / 颜色 = 权重</span></div>
+          <svg id="net-manual" viewBox="0 0 440 300" role="img" aria-label="手动参数下的 2-2-1 网络结构">
+            <g id="net-m-lines" stroke-linecap="round"></g>
+            <g id="net-m-inputs" font-family="GeistMono, monospace"></g>
+            <g id="net-m-hidden" font-family="GeistMono, monospace"></g>
+            <g id="net-m-output" font-family="GeistMono, monospace"></g>
+          </svg>
+          <p class="panel__note">节点里是当前激活值，输出节点是概率。蓝色为正权重、橙色为负权重，越粗绝对值越大。</p>
         </div>
       </div>
 
-      <div class="prose" style="margin-top:34px">
-        <p>可学习的参数一共 9 个：输入到隐藏层的权重 <b>W</b>（2×2）、隐藏层偏置 <b>b</b>（2 个）、隐藏层到输出的权重 <b>v</b>（2 个）、输出偏置 <b>b<sub>out</sub></b>（1 个）。初值沿用课堂代码里的设定，所以每次打开看到的过程是一样的。</p>
-        <p>必须坦白：<mark class="key">这些不是「训练出来的最优解」</mark>，而是从一组人为设定的初值出发，用梯度下降一点点改出来的结果。下面每一张图都对应真实的参数更新，不是预先画好的示意。</p>
+      <div class="grid2">
+        <div class="panel">
+          <div class="panel__head"><h3>决策边界</h3><span>输出概率 p(y=1)</span></div>
+          <canvas id="c-m-boundary"></canvas>
+          <p class="panel__note">蓝色区域判 1、橙色判 0。四个点都被正确颜色的区域包住，才算分开。</p>
+        </div>
+        <div class="panel">
+          <div class="panel__head"><h3>隐藏层表示</h3><span>(h₁, h₂) 平面</span></div>
+          <canvas id="c-m-hidden"></canvas>
+          <p class="panel__note">四个样本被 W、b 映射到新坐标。虚线是输出层此刻画的那条分类线。</p>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:16px">
+        <div class="panel__head"><h3>四个样本的当前输出</h3><span>点一行，网络图切到该样本</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>样本</th><th>目标</th><th>h₁</th><th>h₂</th><th>logit</th><th>概率 p</th><th>判定</th><th>结果</th></tr>
+            </thead>
+            <tbody id="manual-table"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- 02 实验台 -->
-  <section class="section" id="lab">
+  <!-- 03 七步计算 -->
+  <section class="section section--tint" id="steps">
     <div class="wrap">
       <div class="section__head">
-        <p class="eyebrow">02 / 实验台</p>
-        <h2>一边训练，一边看参数</h2>
-        <p>点「开始训练」自动播放，也可以拖时间轴或单步查看。切换学习率会重新训练，下面所有图表都会跟着变。</p>
+        <p class="eyebrow">03 / 七步计算</p>
+        <h2>一次计算，拆成七步</h2>
+        <p>用第 02 节的当前参数，选一个样本，从输入一路算到梯度。每一步都代入真实数字，跟着算一遍就知道公式在干什么。</p>
+      </div>
+
+      <div class="steps-bar">
+        <div class="chips" id="step-chips"></div>
+        <span class="steps-hint">参数来自上方滑杆</span>
+      </div>
+
+      <div class="steps" id="steps-list"></div>
+      <p class="foot-note">第 7 步只算出梯度、预览步长，还没有真的改参数。真正提交在下一节。</p>
+    </div>
+  </section>
+  <!-- 04 学一步 -->
+  <section class="section" id="one">
+    <div class="wrap">
+      <div class="section__head">
+        <p class="eyebrow">04 / 学一步</p>
+        <h2>只看一个样本，走一步 Adam</h2>
+        <p>现在把第 7 步真正执行一次：用选中的单个样本算梯度，Adam 走一步。每点一次，参数就变一次，可以连续点，看它怎么慢慢靠近答案。</p>
+      </div>
+
+      <div class="one-controls">
+        <div class="chips" id="one-chips"></div>
+        <div class="spacer"></div>
+        <button class="btn btn--primary btn--sm" type="button" id="btn-one-apply">应用这一步</button>
+        <button class="btn btn--sm" type="button" id="btn-one-reset">重置动量</button>
+      </div>
+
+      <div class="one-grid">
+        <div class="panel">
+          <div class="panel__head"><h3>前向：这个样本现在算成什么</h3><span id="one-sample-label">—</span></div>
+          <div class="kv" id="one-forward"></div>
+        </div>
+        <div class="panel">
+          <div class="panel__head"><h3>反向：梯度与这一步的步长</h3><span>Adam · lr = 0.03</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>参数</th><th>梯度 ∂L/∂</th><th>本步 Δ</th><th>更新后</th></tr></thead>
+              <tbody id="one-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <p class="foot-note">训练全程用的是 4 个样本的平均梯度；这里只用 1 个，所以步子会更抖，也更直观。</p>
+    </div>
+  </section>
+  <!-- 05 训练全程 -->
+  <section class="section section--tint" id="lab">
+    <div class="wrap">
+      <div class="section__head">
+        <p class="eyebrow">05 / 训练全程</p>
+        <h2>300 轮，一次看全</h2>
+        <p>点「开始训练」自动播放，也可以拖时间轴、单步查看。切换学习率会重新训练，下面六张图会一起变。图表区下方有八个关键时刻的讲解，点卡片就能跳到对应轮次。</p>
       </div>
 
       <div class="lab">
@@ -360,7 +662,7 @@
           </div>
         </div>
 
-        <div class="grid2">
+        <div class="grid2" id="lab-viz">
           <div class="panel">
             <div class="panel__head"><h3>网络结构与实时数值</h3><span>线宽 / 颜色 = 权重</span></div>
             <svg id="net" viewBox="0 0 440 300" role="img" aria-label="2-2-1 多层感知机结构图">
@@ -375,13 +677,13 @@
           <div class="panel">
             <div class="panel__head"><h3>决策边界</h3><span>输出概率 p(y=1)</span></div>
             <canvas id="c-boundary"></canvas>
-            <p class="panel__note">蓝色区域判为 1、橙色判为 0。四个点若是都被正确颜色的区域包住，说明已经学会 XOR。</p>
+            <p class="panel__note">蓝色区域判为 1、橙色判为 0。四个点都被正确颜色的区域包住，说明已经学会 XOR。</p>
           </div>
 
           <div class="panel">
             <div class="panel__head"><h3>隐藏层表示</h3><span>(h₁, h₂) 平面</span></div>
             <canvas id="c-hidden"></canvas>
-            <p class="panel__note">隐藏层把 4 个输入映射到新的坐标。训练到后面，两类点会被一条直线分开——这正是「隐藏层把 XOR 变成线性可分」。</p>
+            <p class="panel__note">隐藏层把 4 个输入映射到新的坐标。训练到后面，两类点会被一条直线分开——这就是「隐藏层把 XOR 变成线性可分」。</p>
           </div>
 
           <div class="panel">
@@ -426,38 +728,131 @@
           </div>
         </div>
       </div>
+
+      <div class="anchors-head">
+        <h3>八个关键时刻</h3>
+        <p>点任意一张卡片，时间轴会跳到对应轮次。卡片上的 loss 和预测是当前学习率下现算的。</p>
+      </div>
+
+      <div class="anchors">
+        <article class="anchor" data-epoch="0">
+          <div class="anchor__top"><span class="anchor__n">00</span><span>第 0 轮</span></div>
+          <h3>只有一组人工初值</h3>
+          <div class="tone-plain"><span class="tone-label">通俗版</span><p>还没开始学。参数是课堂给的那一组，四个概率都挨着 0.5，四位门卫基本在猜，碰巧才对两个。</p></div>
+          <div class="tone-strict"><span class="tone-label">严谨版</span><p>网络处于给定的初始点 (W, b, v, b_out)，尚未执行任何参数更新；输出概率接近 0.5，初始 loss 约为 0.56。</p></div>
+          <div class="anchor__stats"></div>
+          <button class="btn btn--sm" type="button" data-jump="0">跳到第 0 轮</button>
+        </article>
+
+        <article class="anchor" data-epoch="5">
+          <div class="anchor__top"><span class="anchor__n">05</span><span>第 5 轮</span></div>
+          <h3>判对了，但只是刚过线</h3>
+          <div class="tone-plain"><span class="tone-label">通俗版</span><p>才五轮，按 0.5 的门槛已经四个全对。但你看概率只有 0.54 左右——门卫只是勉强举手，还远谈不上有把握。</p></div>
+          <div class="tone-strict"><span class="tone-label">严谨版</span><p>决策阈值已能正确划分四个样本，但正类概率仅略高于 0.5，间隔（margin）很小，loss 仍在 0.5 左右。</p></div>
+          <div class="anchor__stats"></div>
+          <button class="btn btn--sm" type="button" data-jump="5">跳到第 5 轮</button>
+        </article>
+
+        <article class="anchor" data-epoch="20">
+          <div class="anchor__top"><span class="anchor__n">20</span><span>第 20 轮</span></div>
+          <h3>概率开始被拉开</h3>
+          <div class="tone-plain"><span class="tone-label">通俗版</span><p>该亮的往 0.65 走，该灭的往 0.34 走。W 的四个值继续变大，说明两个隐藏单元各自认准了一个方向。</p></div>
+          <div class="tone-strict"><span class="tone-label">严谨版</span><p>logits 的绝对值增大，正负样本概率分别向两侧移动；W 的元素绝对值单调增长，隐藏层映射的方向逐渐固定。</p></div>
+          <div class="anchor__stats"></div>
+          <button class="btn btn--sm" type="button" data-jump="20">跳到第 20 轮</button>
+        </article>
+
+        <article class="anchor" data-epoch="50">
+          <div class="anchor__top"><span class="anchor__n">50</span><span>第 50 轮</span></div>
+          <h3>两个门卫开始分工</h3>
+          <div class="tone-plain"><span class="tone-label">通俗版</span><p>看 (1,0)：h₁ 约 0.78、h₂ 约 0.004。一个门卫很激动，另一个几乎没反应。甲负责「左开右关」、乙负责「左关右开」的分工成形了。</p></div>
+          <div class="tone-strict"><span class="tone-label">严谨版</span><p>隐藏单元出现明显的选择性：对 (1,0)，h₁ 接近 1 而 h₂ 接近 0；对 (0,1) 则相反。两个单元分别编码两个正类样本。</p></div>
+          <div class="anchor__stats"></div>
+          <button class="btn btn--sm" type="button" data-jump="50">跳到第 50 轮</button>
+        </article>
+
+        <article class="anchor" data-epoch="90">
+          <div class="anchor__top"><span class="anchor__n">90</span><span>第 90 轮</span></div>
+          <h3>隐藏空间里已经分得开</h3>
+          <div class="tone-plain"><span class="tone-label">通俗版</span><p>四个样本在 (h₁, h₂) 平面里被推开：两个正类分别靠近右下角和左上角，两个负类留在左下角和中点，一条斜线就能分开。原始平面上那条弯弯曲曲的边界，其实就是这条直线变回去的样子。</p></div>
+          <div class="tone-strict"><span class="tone-label">严谨版</span><p>隐藏表示已近似线性可分：负类样本落在左下区域（含中点附近），两个正类分别沿两条坐标轴分离；输出层的线性判别面在隐藏空间中有效。</p></div>
+          <div class="anchor__stats"></div>
+          <button class="btn btn--sm" type="button" data-jump="90">跳到第 90 轮</button>
+        </article>
+
+        <article class="anchor" data-epoch="140">
+          <div class="anchor__top"><span class="anchor__n">140</span><span>第 140 轮</span></div>
+          <h3>从「分对」到「分稳」</h3>
+          <div class="tone-plain"><span class="tone-label">通俗版</span><p>四个样本早就全对了，但训练没有停：概率继续往 0.9 和 0.08 走。loss 从 0.14 降到 0.08，靠的是把判断推得更远。</p></div>
+          <div class="tone-strict"><span class="tone-label">严谨版</span><p>分类错误已为零，优化目标转为增大 logit 间隔；BCE 继续下降，梯度主要来自被推向饱和区的样本。</p></div>
+          <div class="anchor__stats"></div>
+          <button class="btn btn--sm" type="button" data-jump="140">跳到第 140 轮</button>
+        </article>
+
+        <article class="anchor" data-epoch="220">
+          <div class="anchor__top"><span class="anchor__n">220</span><span>第 220 轮</span></div>
+          <h3>参数在慢慢变「自信」</h3>
+          <div class="tone-plain"><span class="tone-label">通俗版</span><p>权重还在长大（W 已经到 ±5 以上），概率 0.96 对 0.045。变化越来越慢，因为梯度越来越小，但方向没变。</p></div>
+          <div class="tone-strict"><span class="tone-label">严谨版</span><p>sigmoid 进入饱和区，输出层梯度随 (p−t) 减小；Adam 的步长也随之收缩，参数变化趋于平缓，loss 呈缓慢下降。</p></div>
+          <div class="anchor__stats"></div>
+          <button class="btn btn--sm" type="button" data-jump="220">跳到第 220 轮</button>
+        </article>
+
+        <article class="anchor" data-epoch="300">
+          <div class="anchor__top"><span class="anchor__n">300</span><span>第 300 轮</span></div>
+          <h3>收敛：loss ≈ 0.028，4 / 4</h3>
+          <div class="tone-plain"><span class="tone-label">通俗版</span><p>训练结束。四个概率是 0.03 / 0.975 / 0.975 / 0.03，全部判对。参数基本不再动，因为再往下推也换不来多少损失下降。</p></div>
+          <div class="tone-strict"><span class="tone-label">严谨版</span><p>参数接近一个使 BCE 很小的驻点附近，梯度幅值已很小；继续训练收益递减，300 轮的设置足够收敛。</p></div>
+          <div class="anchor__stats"></div>
+          <button class="btn btn--sm" type="button" data-jump="300">跳到第 300 轮</button>
+        </article>
+      </div>
+    </div>
+  </section>
+  <!-- 06 参数解读 -->
+  <section class="section" id="params">
+    <div class="wrap">
+      <div class="section__head">
+        <p class="eyebrow">06 / 参数解读</p>
+        <h2>训练完回头看，每个参数在干什么</h2>
+        <p>结合第 05 节的参数表和六张图，这 9 个数可以分成三组来理解。</p>
+      </div>
+
+      <div class="qa-grid">
+        <article class="qa">
+          <p class="eyebrow">W · 输入 → 隐藏</p>
+          <h3>两个门卫的分工</h3>
+          <div class="tone-plain"><span class="tone-label">通俗版</span><p>W 的四条连接让 h₁ 主要对「左门开、右门关」有反应，h₂ 主要对「左门关、右门开」有反应。两个单元各负责一个正类样本，XOR 就被拆成了两个能相加的条件。</p></div>
+          <div class="tone-strict"><span class="tone-label">严谨版</span><p>W 的两列分别决定两个隐藏单元的输入方向。训练后两列近似为 (w, −w) 与 (−w, w)，使 h₁、h₂ 分别对两个正类样本响应，负类样本则被两个单元同时压低。</p></div>
+        </article>
+        <article class="qa">
+          <p class="eyebrow">b · 隐藏层偏置</p>
+          <h3>决定门卫何时举手</h3>
+          <div class="tone-plain"><span class="tone-label">通俗版</span><p>偏置把 sigmoid 的转折点挪开。太正，门卫见谁都举手；太负，一直沉默。训练就是在找合适的门槛，让「该举手时才举手」。</p></div>
+          <div class="tone-strict"><span class="tone-label">严谨版</span><p>b 控制隐藏单元激活的阈值位置。它和 W 一起决定 sigmoid 在输入空间中的平移，从而调整每个单元对样本的响应区间。</p></div>
+        </article>
+        <article class="qa">
+          <p class="eyebrow">v · 隐藏 → 输出</p>
+          <h3>把两个条件合成一个判断</h3>
+          <div class="tone-plain"><span class="tone-label">通俗版</span><p>输出层只是把 h₁、h₂ 加权相加，再做一次 sigmoid。它做的是「或」：任意一个门卫举手，灯就亮。所以 v 最后都是正的。</p></div>
+          <div class="tone-strict"><span class="tone-label">严谨版</span><p>输出层在隐藏空间中定义线性判别面 v₁h₁ + v₂h₂ + b_out = 0。由于两个隐藏单元分别对应两个正类，v 取正值相当于对二者的响应做逻辑或。</p></div>
+        </article>
+      </div>
+
+      <div class="prose" style="margin-top:34px">
+        <p>回到第 05 节的参数表：W 的四个值最后约为 <b>±6</b>，v 约为 <b>8.2</b>，b 与 b_out 约为 <b>−3.5 / −4.0</b>。这些数值本身没有唯一标准——换一组初值，最后可能得到另一组数，但只要隐藏层的两个单元形成这种「各认一边」的分工，XOR 就能被分开。</p>
+        <p>另一个能直接看到的现象是<mark class="key">学习率的影响</mark>。同样 300 轮，学习率太小走不完，太大则会来回震荡。下表是同一份代码、同一组初值、只改学习率的结果：</p>
+      </div>
     </div>
   </section>
 
-  <!-- 03 参数解读 -->
-  <section class="section section--tint" id="params">
+  <!-- 07 学习率对比 -->
+  <section class="section section--tint" id="lrsec">
     <div class="wrap">
       <div class="section__head">
-        <p class="eyebrow">03 / 解读</p>
-        <h2>这些参数各自在做什么</h2>
-        <p>训练完成后回头看，每个参数的变化都能对上它在网络里的角色。</p>
-      </div>
-
-      <div class="insights">
-        <article class="insight">
-          <p class="eyebrow">W · 输入 → 隐藏</p>
-          <h3>两个隐藏单元分工</h3>
-          <p>W 的四条连接让 h₁ 主要对「x₁=1 且 x₂=0」敏感，h₂ 主要对「x₁=0 且 x₂=1」敏感。两个单元各负责一个正类样本，XOR 就被拆成了两个可以相加的条件。</p>
-        </article>
-        <article class="insight">
-          <p class="eyebrow">b · 偏置</p>
-          <h3>控制单元何时被激活</h3>
-          <p>隐藏层偏置把 sigmoid 的转折点挪开。偏置太正会让单元对任何输入都接近 1，太负则一直沉默；训练就是在找合适的「门槛」。</p>
-        </article>
-        <article class="insight">
-          <p class="eyebrow">v · 隐藏 → 输出</p>
-          <h3>把两个条件合成一个判断</h3>
-          <p>输出层只是把 h₁、h₂ 加权相加再做一次 sigmoid。它的作用是「或」：任意一个隐藏单元被激活，就判为 1，所以 v 最后通常都为正。</p>
-        </article>
-      </div>
-
-      <div class="prose" style="margin-top:36px">
-        <p>另一个能直接看到的现象是<mark class="key">学习率的影响</mark>。同样 300 轮，学习率太小走不完，太大则会来回震荡。下表是同一份代码、同一组初值、只改学习率的结果：</p>
+        <p class="eyebrow">07 / 学习率对比</p>
+        <h2>只改一个数，过程差多少</h2>
+        <p>网络结构、初值、训练轮数都不变，只把学习率从 0.001 换到 0.5。</p>
       </div>
 
       <div class="table-wrap">
@@ -471,15 +866,16 @@
 
       <div class="prose" style="margin-top:22px">
         <p style="font-size:.86rem;color:var(--muted)">注：这张表是页面加载时用同一套训练代码现场算出来的，没有预先写死。</p>
+        <p style="margin-top:16px">学习率 0.001 时每一步挪得太少，300 轮后 loss 还有 0.47，只是勉强越过 0.5 的判定线；调大之后收敛明显更快，0.5 在 20 轮就把 loss 压到 0.05 以下。课堂选 0.03 是个稳妥的折中：既走得动，曲线也不至于太陡。</p>
       </div>
     </div>
   </section>
 
-  <!-- 04 实现 -->
+  <!-- 08 代码 -->
   <section class="section" id="code">
     <div class="wrap">
       <div class="section__head">
-        <p class="eyebrow">04 / 实现</p>
+        <p class="eyebrow">08 / 实现</p>
         <h2>训练和可视化的代码</h2>
         <p>这页的可视化本身用 JavaScript 实现（浏览器里直接训练），下面是等价的 NumPy 版本，逻辑完全一致：手动前向、手动反向传播、Adam 更新，再用 matplotlib 画图。</p>
       </div>
@@ -592,23 +988,14 @@ plt.savefig("mlp_params.png", dpi=150)
       <div class="prose" style="margin-top:28px">
         <p>页面上那 6 张图就是按上面的思路画的：损失曲线对应第 ① 段，决策边界和隐藏层表示对应第 ②③ 段，参数轨迹对应最后一段。区别只在绘制方式——这里是 canvas，Python 版用 matplotlib。</p>
       </div>
-    </div>
-  </section>
 
-  <!-- 05 结论 -->
-  <section class="section section--tint" id="summary">
-    <div class="wrap">
-      <div class="section__head">
-        <p class="eyebrow">05 / 结论</p>
-        <h2>做完之后记住的三件事</h2>
-      </div>
-      <div class="prose" style="margin-top:28px">
-        <p><b>1. 学习参数不是「猜」出来的。</b>每一步更新的方向由损失对参数的梯度决定，Adam 只是让步长更稳一些。关掉梯度、只保留前向计算，参数就永远不会变。</p>
-        <p><b>2. 隐藏层的作用是换一组坐标。</b>原始平面上 XOR 两类点交错，任何直线都分不开；经过 W 和 b 映射到 (h₁, h₂) 后，同样的样本变成线性可分，输出层才只需要画一条直线。</p>
-        <p><b>3. 超参数会改变过程，不改变结论。</b>学习率小收敛慢，学习率大会震荡，但在合理范围里，300 轮都能学会 XOR。真正决定能力边界的是网络有没有隐藏层，而不是训练多久。</p>
-      </div>
-      <div style="margin-top:34px">
-        <a class="btn" href="./index.html">← 回到首页</a>
+      <div class="closing">
+        <p class="eyebrow" style="color:#8FB2FF">收尾</p>
+        <h3>做完之后记住的三件事</h3>
+        <p><b>1. 参数不是猜出来的。</b>每一步的方向由损失对参数的梯度决定，Adam 只是让步长更稳。没有反向传播，参数永远不会变。</p>
+        <p><b>2. 隐藏层的作用是换坐标。</b>原始平面上 XOR 两类点交错，任何直线都分不开；映射到 (h₁, h₂) 后变得线性可分，输出层才只需要画一条直线。</p>
+        <p><b>3. 超参数改变过程，不改变结论。</b>学习率小收敛慢，大了步子更猛；合理范围内 300 轮都能判对，但 loss 差得很远。真正决定能力边界的是有没有隐藏层。</p>
+        <p style="margin-top:22px"><a class="btn" href="./index.html">← 作业列表</a></p>
       </div>
     </div>
   </section>
@@ -618,22 +1005,22 @@ plt.savefig("mlp_params.png", dpi=150)
 <footer class="site-footer">
   <div class="wrap">
     <h2>第二次作业 · 第 15 节 · MLP 学习参数的实现与可视化</h2>
-    <p>2—2—1 网络、4 个 XOR 样本、9 个可学习参数。页面上的训练与图表全部在浏览器里实时计算。</p>
+    <p>2—2—1 网络、4 个 XOR 样本、9 个可学习参数。页面上的训练、调参与图表全部在浏览器里实时计算。</p>
     <div class="foot-meta">
       <span>人工智能概论 · 第二篇 / 第 15 节</span>
       <span>纯 HTML + Canvas，无外部依赖</span>
     </div>
   </div>
 </footer>
-
 <script>
 (function () {
   'use strict';
 
   var X = [[0, 0], [0, 1], [1, 0], [1, 1]];
   var T = [0, 1, 1, 0];
-  var N = 4;
-  var EPOCHS = 300;
+  var LABELS = ['00', '01', '10', '11'];
+  var N = 4, EPOCHS = 300, LR = 0.03;
+  var B1 = 0.9, B2 = 0.999, EPS = 1e-7;
 
   function sig(z) { return 1 / (1 + Math.exp(-z)); }
 
@@ -669,16 +1056,8 @@ plt.savefig("mlp_params.png", dpi=150)
   }
 
   function train(lr, epochs, keepHistory) {
-    var P = {
-      W: [[2, -2], [-2, 2]],
-      b: [-1, -1],
-      v: [3, 3],
-      bo: -2.5
-    };
-    var m = { W: [[0, 0], [0, 0]], b: [0, 0], v: [0, 0], bo: 0 };
-    var s = { W: [[0, 0], [0, 0]], b: [0, 0], v: [0, 0], bo: 0 };
-    var b1 = 0.9, b2 = 0.999, eps = 1e-7;
-
+    var P = { W: [[2, -2], [-2, 2]], b: [-1, -1], v: [3, 3], bo: -2.5 };
+    var m = zerosLike(), s = zerosLike();
     var hist = { loss: [], params: [], pred: [], hid: [] };
     var snap = function () {
       var ev = evaluate(P);
@@ -695,7 +1074,7 @@ plt.savefig("mlp_params.png", dpi=150)
     var firstBelow = -1;
 
     for (var e = 1; e <= epochs; e++) {
-      var g = { W: [[0, 0], [0, 0]], b: [0, 0], v: [0, 0], bo: 0 };
+      var g = zerosLike();
       var hs = [], ps = [], loss = 0;
       for (var i = 0; i < N; i++) {
         var o = forward(P, X[i]);
@@ -718,28 +1097,28 @@ plt.savefig("mlp_params.png", dpi=150)
         }
       }
 
-      var bc1 = 1 - Math.pow(b1, e);
-      var bc2 = 1 - Math.pow(b2, e);
+      var bc1 = 1 - Math.pow(B1, e);
+      var bc2 = 1 - Math.pow(B2, e);
 
       for (var a = 0; a < 2; a++) {
         for (var c = 0; c < 2; c++) {
-          m.W[a][c] = b1 * m.W[a][c] + (1 - b1) * g.W[a][c];
-          s.W[a][c] = b2 * s.W[a][c] + (1 - b2) * g.W[a][c] * g.W[a][c];
-          P.W[a][c] -= lr * (m.W[a][c] / bc1) / (Math.sqrt(s.W[a][c] / bc2) + eps);
+          m.W[a][c] = B1 * m.W[a][c] + (1 - B1) * g.W[a][c];
+          s.W[a][c] = B2 * s.W[a][c] + (1 - B2) * g.W[a][c] * g.W[a][c];
+          P.W[a][c] -= lr * (m.W[a][c] / bc1) / (Math.sqrt(s.W[a][c] / bc2) + EPS);
         }
       }
       for (var u = 0; u < 2; u++) {
-        m.b[u] = b1 * m.b[u] + (1 - b1) * g.b[u];
-        s.b[u] = b2 * s.b[u] + (1 - b2) * g.b[u] * g.b[u];
-        P.b[u] -= lr * (m.b[u] / bc1) / (Math.sqrt(s.b[u] / bc2) + eps);
+        m.b[u] = B1 * m.b[u] + (1 - B1) * g.b[u];
+        s.b[u] = B2 * s.b[u] + (1 - B2) * g.b[u] * g.b[u];
+        P.b[u] -= lr * (m.b[u] / bc1) / (Math.sqrt(s.b[u] / bc2) + EPS);
 
-        m.v[u] = b1 * m.v[u] + (1 - b1) * g.v[u];
-        s.v[u] = b2 * s.v[u] + (1 - b2) * g.v[u] * g.v[u];
-        P.v[u] -= lr * (m.v[u] / bc1) / (Math.sqrt(s.v[u] / bc2) + eps);
+        m.v[u] = B1 * m.v[u] + (1 - B1) * g.v[u];
+        s.v[u] = B2 * s.v[u] + (1 - B2) * g.v[u] * g.v[u];
+        P.v[u] -= lr * (m.v[u] / bc1) / (Math.sqrt(s.v[u] / bc2) + EPS);
       }
-      m.bo = b1 * m.bo + (1 - b1) * g.bo;
-      s.bo = b2 * s.bo + (1 - b2) * g.bo * g.bo;
-      P.bo -= lr * (m.bo / bc1) / (Math.sqrt(s.bo / bc2) + eps);
+      m.bo = B1 * m.bo + (1 - B1) * g.bo;
+      s.bo = B2 * s.bo + (1 - B2) * g.bo * g.bo;
+      P.bo -= lr * (m.bo / bc1) / (Math.sqrt(s.bo / bc2) + EPS);
 
       var cur = snap();
       if (firstBelow < 0 && cur.loss < 0.05) firstBelow = e;
@@ -750,15 +1129,84 @@ plt.savefig("mlp_params.png", dpi=150)
     for (var q = 0; q < N; q++) {
       if ((finalEv.pred[q] >= 0.5 ? 1 : 0) === T[q]) correct++;
     }
-    return {
-      hist: hist,
-      final: finalEv,
-      firstBelow: firstBelow,
-      correct: correct
-    };
+    return { hist: hist, final: finalEv, firstBelow: firstBelow, correct: correct };
   }
 
-  /* ================= state ================= */
+  /* ============ parameter descriptors ============ */
+  var PARAMS = [
+    { key: 'W₁₁', desc: 'x₁ → h₁', label: '输入 x₁ → 隐藏 h₁', path: ['W', 0, 0], init: 2, min: -8, max: 8, group: 'W · 输入 → 隐藏', lock: false },
+    { key: 'W₂₁', desc: 'x₂ → h₁', label: '输入 x₂ → 隐藏 h₁', path: ['W', 1, 0], init: -2, min: -8, max: 8, group: '', lock: false },
+    { key: 'W₁₂', desc: 'x₁ → h₂', label: '输入 x₁ → 隐藏 h₂', path: ['W', 0, 1], init: -2, min: -8, max: 8, group: '', lock: false },
+    { key: 'W₂₂', desc: 'x₂ → h₂', label: '输入 x₂ → 隐藏 h₂', path: ['W', 1, 1], init: 2, min: -8, max: 8, group: '', lock: false },
+    { key: 'b₁', desc: 'h₁ 偏置', label: '隐藏 h₁ 的偏置', path: ['b', 0], init: -1, min: -8, max: 8, group: 'b · 隐藏层偏置', lock: false },
+    { key: 'b₂', desc: 'h₂ 偏置', label: '隐藏 h₂ 的偏置', path: ['b', 1], init: -1, min: -8, max: 8, group: '', lock: false },
+    { key: 'v₁', desc: 'h₁ → 输出', label: '隐藏 h₁ → 输出', path: ['v', 0], init: 3, min: -8, max: 8, group: 'v · 隐藏 → 输出', lock: false },
+    { key: 'v₂', desc: 'h₂ → 输出', label: '隐藏 h₂ → 输出', path: ['v', 1], init: 3, min: -8, max: 8, group: '', lock: false },
+    { key: 'b_out', desc: '输出偏置', label: '输出层偏置', path: ['bo'], init: -2.5, min: -8, max: 8, group: 'b_out · 输出偏置', lock: false }
+  ];
+
+  function zerosLike() {
+    return { W: [[0, 0], [0, 0]], b: [0, 0], v: [0, 0], bo: 0 };
+  }
+  function cloneMom(o) {
+    return {
+      W: [[o.W[0][0], o.W[0][1]], [o.W[1][0], o.W[1][1]]],
+      b: [o.b[0], o.b[1]],
+      v: [o.v[0], o.v[1]],
+      bo: o.bo
+    };
+  }
+  function getIn(o, path) {
+    var x = o;
+    for (var i = 0; i < path.length; i++) x = x[path[i]];
+    return x;
+  }
+  function setIn(o, path, val) {
+    var x = o;
+    for (var i = 0; i < path.length - 1; i++) x = x[path[i]];
+    x[path[path.length - 1]] = val;
+  }
+
+  var INIT = { W: [[2, -2], [-2, 2]], b: [-1, -1], v: [3, 3], bo: -2.5 };
+  var manual = cloneParams(INIT);
+  var man = { m: zerosLike(), s: zerosLike(), t: 0, sample: 2 };
+
+  function gradOne(P, k) {
+    var x = X[k], o = forward(P, x), d = o.prob - T[k];
+    var h1 = o.h[0], h2 = o.h[1];
+    var g = zerosLike();
+    g.v[0] = d * h1;
+    g.v[1] = d * h2;
+    g.bo = d;
+    var dp1 = d * P.v[0] * h1 * (1 - h1);
+    var dp2 = d * P.v[1] * h2 * (1 - h2);
+    g.W[0][0] = dp1 * x[0];
+    g.W[1][0] = dp1 * x[1];
+    g.b[0] = dp1;
+    g.W[0][1] = dp2 * x[0];
+    g.W[1][1] = dp2 * x[1];
+    g.b[1] = dp2;
+    return { g: g, out: o };
+  }
+
+  function adamPreview(g, m, s, stepIndex) {
+    var delta = zerosLike();
+    var nm = cloneMom(m), ns = cloneMom(s);
+    var bc1 = 1 - Math.pow(B1, stepIndex);
+    var bc2 = 1 - Math.pow(B2, stepIndex);
+    PARAMS.forEach(function (p) {
+      var gv = getIn(g, p.path);
+      var mv = B1 * getIn(m, p.path) + (1 - B1) * gv;
+      var sv = B2 * getIn(s, p.path) + (1 - B2) * gv * gv;
+      setIn(nm, p.path, mv);
+      setIn(ns, p.path, sv);
+      var step = LR * (mv / bc1) / (Math.sqrt(sv / bc2) + EPS);
+      setIn(delta, p.path, -step);
+    });
+    return { delta: delta, m: nm, s: ns };
+  }
+
+  /* ============ state / dom ============ */
   var state = { lr: 0.03, epoch: 0, playing: false, raf: null, run: null };
 
   var el = {
@@ -773,13 +1221,11 @@ plt.savefig("mlp_params.png", dpi=150)
     acc: document.getElementById('st-acc'),
     paramBody: document.getElementById('param-body'),
     paramEpoch: document.getElementById('param-epoch'),
-    lrBody: document.getElementById('lr-body'),
-    net: document.getElementById('net')
+    lrBody: document.getElementById('lr-body')
   };
 
   var COLORS = ['#3B5BFF', '#D6560F', '#1F9D8F', '#8C4BD6', '#C9A227', '#5A6270'];
 
-  /* ================= canvas helpers ================= */
   function fit(cv) {
     var dpr = window.devicePixelRatio || 1;
     var w = cv.clientWidth || 300;
@@ -794,30 +1240,27 @@ plt.savefig("mlp_params.png", dpi=150)
     return { ctx: ctx, w: w, h: h };
   }
 
-  function roundRect(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r);
-    ctx.arcTo(x, y, x + w, y, r);
-    ctx.closePath();
-  }
-
   function fmt(v, d) {
     d = (d === undefined) ? 3 : d;
     if (!isFinite(v)) return '—';
     var s = v.toFixed(d);
-    return (s === '-0.000') ? '0.000' : s;
+    if (/^-0\.?0*$/.test(s)) s = s.slice(1);
+    return s;
   }
 
-  /* ================= network diagram ================= */
-  var netBuild = (function () {
+  function countCorrect(pred) {
+    var c = 0;
+    for (var i = 0; i < N; i++) if ((pred[i] >= 0.5 ? 1 : 0) === T[i]) c++;
+    return c;
+  }
+
+  /* ============ network diagram ============ */
+  function buildNet(lineG, inG, hidG, outG) {
     var svgNS = 'http://www.w3.org/2000/svg';
-    var gLines = document.getElementById('net-lines');
-    var gIn = document.getElementById('net-inputs');
-    var gHid = document.getElementById('net-hidden');
-    var gOut = document.getElementById('net-output');
+    var gLines = document.getElementById(lineG);
+    var gIn = document.getElementById(inG);
+    var gHid = document.getElementById(hidG);
+    var gOut = document.getElementById(outG);
 
     var posIn = [[66, 84], [66, 216]];
     var posHid = [[220, 84], [220, 216]];
@@ -845,7 +1288,7 @@ plt.savefig("mlp_params.png", dpi=150)
       lines.push({ el: lo, j: j2, kind: 'v' });
     }
 
-    function mkNode(g, x, y, label, labelColor) {
+    function mkNode(g, x, y, label) {
       var c = document.createElementNS(svgNS, 'circle');
       c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', 25);
       c.setAttribute('fill', '#FFFFFF');
@@ -873,30 +1316,30 @@ plt.savefig("mlp_params.png", dpi=150)
     var outTxt = mkNode(gOut, posOut[0], posOut[1], 'ŷ = p(y=1)');
 
     return { lines: lines, inTxt: inTxt, hidTxt: hidTxt, outTxt: outTxt };
-  })();
+  }
 
-  function drawNetwork(P, hid, x) {
-    netBuild.lines.forEach(function (L) {
+  function drawNetwork(build, P, hid, x, prob) {
+    build.lines.forEach(function (L) {
       var w = (L.kind === 'w') ? P.W[L.k][L.j] : P.v[L.j];
       L.el.setAttribute('stroke', w >= 0 ? '#3B5BFF' : '#D6560F');
       L.el.setAttribute('stroke-width', (0.9 + Math.min(4.2, Math.abs(w) * 0.75)).toFixed(2));
       L.el.setAttribute('stroke-opacity', '0.78');
     });
-    netBuild.inTxt[0].textContent = String(x[0]);
-    netBuild.inTxt[1].textContent = String(x[1]);
-    netBuild.hidTxt[0].textContent = hid[0].toFixed(2);
-    netBuild.hidTxt[1].textContent = hid[1].toFixed(2);
-    netBuild.outTxt.textContent = P.__prob !== undefined ? P.__prob.toFixed(2) : '—';
+    build.inTxt[0].textContent = String(x[0]);
+    build.inTxt[1].textContent = String(x[1]);
+    build.hidTxt[0].textContent = hid[0].toFixed(2);
+    build.hidTxt[1].textContent = hid[1].toFixed(2);
+    build.outTxt.textContent = (prob === undefined) ? '—' : prob.toFixed(2);
   }
 
-  /* ================= decision boundary ================= */
+  /* ============ decision boundary ============ */
   var GRID = 72;
   var off = document.createElement('canvas');
   off.width = GRID; off.height = GRID;
   var offCtx = off.getContext('2d');
 
-  function drawBoundary(P) {
-    var cv = document.getElementById('c-boundary');
+  function drawBoundary(P, canvasId) {
+    var cv = document.getElementById(canvasId);
     var f = fit(cv), ctx = f.ctx, w = f.w, h = f.h;
     var pad = 30;
     var size = Math.min(w - pad * 2, h - pad * 2);
@@ -964,14 +1407,14 @@ plt.savefig("mlp_params.png", dpi=150)
       ctx.fillStyle = '#14161B';
       ctx.font = '10px GeistMono, monospace';
       ctx.textAlign = 'left';
-      ctx.fillText(X[i][0] + '' + X[i][1], px2 + 10, py2 - 8);
+      ctx.fillText(LABELS[i], px2 + 10, py2 - 8);
     }
     ctx.textAlign = 'left';
   }
 
-  /* ================= hidden space ================= */
-  function drawHidden(hid, P) {
-    var cv = document.getElementById('c-hidden');
+  /* ============ hidden space ============ */
+  function drawHidden(hid, P, canvasId) {
+    var cv = document.getElementById(canvasId);
     var f = fit(cv), ctx = f.ctx, w = f.w, h = f.h;
     var pad = 42;
     var size = Math.min(w - pad * 2, h - pad * 2);
@@ -1009,7 +1452,6 @@ plt.savefig("mlp_params.png", dpi=150)
     });
     ctx.textAlign = 'left';
 
-    /* 输出层的分类直线 v1*h1 + v2*h2 + bo = 0 */
     if (Math.abs(P.v[1]) > 1e-6) {
       var pts = [];
       for (var s = 0; s <= 40; s++) {
@@ -1032,7 +1474,6 @@ plt.savefig("mlp_params.png", dpi=150)
       }
     }
 
-    var labels = ['00', '01', '10', '11'];
     for (var i = 0; i < N; i++) {
       var px2 = ox + (hid[i][0] - lo) / (hi - lo) * size;
       var py2 = oy + size - (hid[i][1] - lo) / (hi - lo) * size;
@@ -1047,11 +1488,10 @@ plt.savefig("mlp_params.png", dpi=150)
       ctx.font = '10px GeistMono, monospace';
       var dy = (i === 0) ? -12 : (i === 3 ? 18 : -12);
       var dx = (i === 0) ? -18 : 10;
-      ctx.fillText(labels[i], px2 + dx, py2 + dy);
+      ctx.fillText(LABELS[i], px2 + dx, py2 + dy);
     }
   }
-
-  /* ================= line charts ================= */
+  /* ============ line charts ============ */
   function chartFrame(ctx, w, h) {
     var l = 44, r = 12, t = 12, b = 24;
     return { l: l, r: r, t: t, b: b, iw: w - l - r, ih: h - t - b };
@@ -1081,6 +1521,7 @@ plt.savefig("mlp_params.png", dpi=150)
       ctx.fillText(e === 0 ? '1' : '1e' + e, fr.l - 8, y + 3.5);
     });
     ctx.fillStyle = '#64686E';
+    ctx.font = '10px GeistMono, monospace';
     ctx.textAlign = 'center';
     [0, 100, 200, 300].forEach(function (ep) {
       ctx.fillText(String(ep), px(ep), h - 6);
@@ -1113,7 +1554,7 @@ plt.savefig("mlp_params.png", dpi=150)
     ctx.textAlign = 'left';
   }
 
-  function seriesChart(cvId, series, hist, cur, opts) {
+  function seriesChart(cvId, series, hist, cur) {
     var cv = document.getElementById(cvId);
     var f = fit(cv), ctx = f.ctx, w = f.w, h = f.h;
     var fr = chartFrame(ctx, w, h);
@@ -1152,6 +1593,7 @@ plt.savefig("mlp_params.png", dpi=150)
       ctx.beginPath(); ctx.moveTo(fr.l, py(0)); ctx.lineTo(fr.l + fr.iw, py(0)); ctx.stroke();
     }
     ctx.fillStyle = '#64686E';
+    ctx.font = '10px GeistMono, monospace';
     ctx.textAlign = 'center';
     [0, 100, 200, 300].forEach(function (ep) { ctx.fillText(String(ep), px(ep), h - 6); });
 
@@ -1174,23 +1616,11 @@ plt.savefig("mlp_params.png", dpi=150)
     ctx.textAlign = 'left';
   }
 
-  /* ================= parameter table ================= */
-  var PARAM_DEFS = [
-    { key: 'W11', label: '输入 x₁ → 隐藏 h₁', get: function (P) { return P.W[0][0]; }, init: 2 },
-    { key: 'W12', label: '输入 x₂ → 隐藏 h₁', get: function (P) { return P.W[1][0]; }, init: -2 },
-    { key: 'W21', label: '输入 x₁ → 隐藏 h₂', get: function (P) { return P.W[0][1]; }, init: -2 },
-    { key: 'W22', label: '输入 x₂ → 隐藏 h₂', get: function (P) { return P.W[1][1]; }, init: 2 },
-    { key: 'b₁', label: '隐藏 h₁ 的偏置', get: function (P) { return P.b[0]; }, init: -1 },
-    { key: 'b₂', label: '隐藏 h₂ 的偏置', get: function (P) { return P.b[1]; }, init: -1 },
-    { key: 'v₁', label: '隐藏 h₁ → 输出', get: function (P) { return P.v[0]; }, init: 3 },
-    { key: 'v₂', label: '隐藏 h₂ → 输出', get: function (P) { return P.v[1]; }, init: 3 },
-    { key: 'b<sub>out</sub>', label: '输出层偏置', get: function (P) { return P.bo; }, init: -2.5 }
-  ];
-
+  /* ============ tables ============ */
   function updateParamTable(P) {
     var html = '';
-    PARAM_DEFS.forEach(function (d) {
-      var v = d.get(P);
+    PARAMS.forEach(function (d) {
+      var v = getIn(P, d.path);
       var delta = v - d.init;
       var cls = Math.abs(delta) < 0.0005 ? '' : (delta > 0 ? 'pos' : 'neg');
       html += '<tr><td class="num">' + d.key + '</td><td>' + d.label +
@@ -1201,7 +1631,6 @@ plt.savefig("mlp_params.png", dpi=150)
     el.paramBody.innerHTML = html;
   }
 
-  /* ================= learning rate table ================= */
   function buildLrTable() {
     var lrs = [0.001, 0.01, 0.03, 0.1, 0.5];
     var html = '';
@@ -1209,9 +1638,11 @@ plt.savefig("mlp_params.png", dpi=150)
       var r = train(lr, EPOCHS, false);
       var ok = (r.correct === 4);
       var reach = r.firstBelow > 0 ? (r.firstBelow + ' 轮') : '未达到';
-      var verdict = ok ? '学会 XOR' : '没学会';
-      if (lr === 0.001) verdict = ok ? '学会，但很慢' : '300 轮不够';
-      if (lr >= 0.1) verdict = ok ? '学会，过程更抖' : '震荡，未收敛';
+      var verdict;
+      if (!ok) verdict = '没学会';
+      else if (r.final.loss > 0.1) verdict = '判对，但远未收敛';
+      else if (lr === 0.03) verdict = '学会 XOR';
+      else verdict = lr < 0.03 ? '学会，但较慢' : '学会，收敛更快';
       var style = (lr === 0.03) ? ' style="background:rgba(59,91,255,0.05)"' : '';
       html += '<tr' + style + '><td class="num">' + lr + (lr === 0.03 ? '（课堂设置）' : '') +
         '</td><td class="num">' + reach +
@@ -1222,15 +1653,15 @@ plt.savefig("mlp_params.png", dpi=150)
     el.lrBody.innerHTML = html;
   }
 
-  /* ================= render ================= */
+  /* ============ training render ============ */
+  var netMain = null;
+
   function render() {
     var h = state.run.hist;
     var i = state.epoch;
-    var P = h.params[i] || cloneParams({
-      W: [[2, -2], [-2, 2]], b: [-1, -1], v: [3, 3], bo: -2.5
-    });
-    var pred = h.pred[i] || [0, 0, 0, 0];
-    var hid = h.hid[i] || [[0, 0], [0, 0], [0, 0], [0, 0]];
+    var P = h.params[i];
+    var pred = h.pred[i];
+    var hid = h.hid[i];
     var loss = h.loss[i];
 
     el.epoch.value = i;
@@ -1238,18 +1669,13 @@ plt.savefig("mlp_params.png", dpi=150)
     el.loss.textContent = fmt(loss, 5);
     el.pred.textContent = pred.map(function (p) { return fmt(p, 2); }).join(' / ');
 
-    var correct = 0;
-    for (var q = 0; q < N; q++) {
-      if ((pred[q] >= 0.5 ? 1 : 0) === T[q]) correct++;
-    }
+    var correct = countCorrect(pred);
     el.acc.textContent = 'XOR 正确 ' + correct + '/4';
     el.acc.style.color = correct === 4 ? '#1F7A5C' : '#D6560F';
 
-    var Pp = cloneParams(P);
-    Pp.__prob = pred[2] !== undefined ? pred[2] : 0;
-    drawNetwork(Pp, hid[2], X[2]);
-    drawBoundary(P);
-    drawHidden(hid, P);
+    drawNetwork(netMain, P, hid[2], X[2], pred[2]);
+    drawBoundary(P, 'c-boundary');
+    drawHidden(hid, P, 'c-hidden');
     drawLoss(h.loss, i);
     seriesChart('c-weights', [
       { get: function (p) { return p.W[0][0]; } },
@@ -1266,9 +1692,48 @@ plt.savefig("mlp_params.png", dpi=150)
     ], h.params, i);
     updateParamTable(P);
     el.paramEpoch.textContent = '第 ' + i + ' 轮';
+    updateAnchorState();
   }
 
-  /* ================= controls ================= */
+  /* ============ anchors ============ */
+  var anchorCards = Array.prototype.slice.call(document.querySelectorAll('.anchor'));
+
+  function buildAnchorStats() {
+    var hist = state.run.hist;
+    anchorCards.forEach(function (card) {
+      var e = parseInt(card.getAttribute('data-epoch'), 10);
+      var st = card.querySelector('.anchor__stats');
+      var pred = hist.pred[e];
+      st.innerHTML = 'loss ' + fmt(hist.loss[e], 4) + ' · 正确 ' + countCorrect(pred) + '/4<br>p ' +
+        pred.map(function (p) { return fmt(p, 3); }).join(' / ');
+    });
+  }
+
+  function updateAnchorState() {
+    anchorCards.forEach(function (card) {
+      var e = parseInt(card.getAttribute('data-epoch'), 10);
+      card.classList.toggle('is-passed', e <= state.epoch);
+      card.classList.toggle('is-current', e === state.epoch);
+    });
+  }
+
+  function jumpTo(e) {
+    state.playing = false;
+    if (state.raf) cancelAnimationFrame(state.raf);
+    setPlaying(false);
+    state.epoch = Math.max(0, Math.min(EPOCHS, e));
+    render();
+    var viz = document.getElementById('lab-viz');
+    if (viz && viz.scrollIntoView) viz.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  anchorCards.forEach(function (card) {
+    card.addEventListener('click', function () {
+      jumpTo(parseInt(card.getAttribute('data-epoch'), 10));
+    });
+  });
+
+  /* ============ training controls ============ */
   function setPlaying(on) {
     state.playing = on;
     el.play.textContent = on ? '暂停' : (state.epoch >= EPOCHS ? '重新播放' : '开始训练');
@@ -1332,23 +1797,311 @@ plt.savefig("mlp_params.png", dpi=150)
     state.run = train(state.lr, EPOCHS, true);
     state.epoch = 0;
     setPlaying(false);
+    buildAnchorStats();
     render();
   });
 
-  /* ================= init ================= */
+  /* ============ tone switch ============ */
+  var toneBtns = Array.prototype.slice.call(document.querySelectorAll('[data-tone-btn]'));
+
+  function setTone(t) {
+    document.documentElement.setAttribute('data-tone', t);
+    toneBtns.forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.getAttribute('data-tone-btn') === t));
+    });
+    try { localStorage.setItem('mlp-tone', t); } catch (err) {}
+  }
+
+  toneBtns.forEach(function (b) {
+    b.addEventListener('click', function () { setTone(b.getAttribute('data-tone-btn')); });
+  });
+
+  /* ============ nav scrollspy ============ */
+  function initSpy() {
+    var links = Array.prototype.slice.call(document.querySelectorAll('#nav-links a'));
+    links = links.filter(function (a) { return a.getAttribute('href').charAt(0) === '#'; });
+    var secs = links.map(function (a) { return document.querySelector(a.getAttribute('href')); });
+    function spy() {
+      var y = (window.pageYOffset || document.documentElement.scrollTop) + 100;
+      var idx = 0;
+      for (var i = 0; i < secs.length; i++) {
+        if (secs[i] && secs[i].offsetTop <= y) idx = i;
+      }
+      links.forEach(function (a, j) { a.classList.toggle('is-active', j === idx); });
+    }
+    window.addEventListener('scroll', spy, { passive: true });
+    window.addEventListener('resize', spy);
+    spy();
+  }
+  /* ============ manual parameters ============ */
+  var manualNet = null;
+  var sliderInputs = [];
+
+  function buildSliders() {
+    var box = document.getElementById('slider-box');
+    var html = '';
+    PARAMS.forEach(function (p, i) {
+      if (p.group) html += '<div class="is-w">' + p.group + '</div>';
+      html += '<div class="pslider">' +
+        '<span class="pslider__name">' + p.key + '<small>' + p.desc + '</small></span>' +
+        '<input type="range" min="' + p.min + '" max="' + p.max + '" step="0.01" value="' +
+        getIn(manual, p.path).toFixed(2) + '">' +
+        '<span class="pslider__val" id="pv-' + i + '">' + fmt(getIn(manual, p.path), 2) + '</span>' +
+        '</div>';
+    });
+    box.innerHTML = html;
+
+    sliderInputs = Array.prototype.slice.call(box.querySelectorAll('input[type="range"]'));
+    sliderInputs.forEach(function (inp, i) {
+      inp.addEventListener('input', function () {
+        setIn(manual, PARAMS[i].path, parseFloat(inp.value));
+        man.m = zerosLike();
+        man.s = zerosLike();
+        man.t = 0;
+        renderManual();
+      });
+    });
+  }
+
+  function syncSliders() {
+    sliderInputs.forEach(function (inp, i) {
+      var v = getIn(manual, PARAMS[i].path);
+      inp.value = v.toFixed(2);
+      var out = document.getElementById('pv-' + i);
+      if (out) out.textContent = fmt(v, 2);
+    });
+  }
+
+  function renderManualTable() {
+    var html = '';
+    for (var i = 0; i < N; i++) {
+      var o = forward(manual, X[i]);
+      var pred = o.prob >= 0.5 ? 1 : 0;
+      var ok = pred === T[i];
+      html += '<tr data-row="' + i + '" class="' + (i === man.sample ? 'is-sel' : '') + '">' +
+        '<td class="num">(' + LABELS[i][0] + ',' + LABELS[i][1] + ')</td>' +
+        '<td class="num">' + T[i] + '</td>' +
+        '<td class="num">' + fmt(o.h[0], 3) + '</td>' +
+        '<td class="num">' + fmt(o.h[1], 3) + '</td>' +
+        '<td class="num">' + fmt(o.logit, 3) + '</td>' +
+        '<td class="num' + (o.prob >= 0.5 ? ' pos' : ' neg') + '">' + fmt(o.prob, 3) + '</td>' +
+        '<td class="num">' + pred + '</td>' +
+        '<td class="' + (ok ? 'good' : 'bad') + '">' + (ok ? '✓' : '✗') + '</td></tr>';
+    }
+    document.getElementById('manual-table').innerHTML = html;
+  }
+
+  function buildSampleChips() {
+    ['step-chips', 'one-chips'].forEach(function (id) {
+      var box = document.getElementById(id);
+      box.innerHTML = [0, 1, 2, 3].map(function (i) {
+        return '<button class="chip-btn" type="button" data-sample="' + i + '">(' +
+          LABELS[i][0] + ',' + LABELS[i][1] + ') → t=' + T[i] + '</button>';
+      }).join('');
+      box.addEventListener('click', function (e) {
+        var b = e.target.closest('button[data-sample]');
+        if (!b) return;
+        man.sample = parseInt(b.getAttribute('data-sample'), 10);
+        renderManual();
+      });
+    });
+  }
+
+  function syncChips() {
+    var btns = document.querySelectorAll('.chip-btn[data-sample]');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].setAttribute('aria-pressed',
+        String(parseInt(btns[i].getAttribute('data-sample'), 10) === man.sample));
+    }
+  }
+
+  function renderManual() {
+    syncSliders();
+    var ev = evaluate(manual);
+    var s = man.sample;
+    drawNetwork(manualNet, manual, ev.hid[s], X[s], ev.pred[s]);
+    drawBoundary(manual, 'c-m-boundary');
+    drawHidden(ev.hid, manual, 'c-m-hidden');
+    renderManualTable();
+    syncChips();
+    renderSteps();
+    renderOne();
+    document.getElementById('manual-hint').textContent =
+      man.t > 0 ? ('已走 ' + man.t + ' 步 Adam，拖动滑杆会清零') : '初值来自课堂代码';
+  }
+
+  /* ============ seven steps ============ */
+  function stepHtml(n, title, body, formula) {
+    return '<div class="step"><div class="step__n">' + n + '</div><div>' +
+      '<h3>' + title + '</h3><p>' + body + '</p>' +
+      '<div class="formula">' + formula + '</div></div></div>';
+  }
+
+  function renderSteps() {
+    var k = man.sample, x = X[k], t = T[k];
+    var gp = gradOne(manual, k), o = gp.out;
+    var ad = adamPreview(gp.g, man.m, man.s, man.t + 1);
+    var w11 = manual.W[0][0], w21 = manual.W[1][0];
+    var w12 = manual.W[0][1], w22 = manual.W[1][1];
+    var b1 = manual.b[0], b2 = manual.b[1];
+    var v1 = manual.v[0], v2 = manual.v[1], bo = manual.bo;
+    var z1 = w11 * x[0] + w21 * x[1] + b1;
+    var z2 = w12 * x[0] + w22 * x[1] + b2;
+    var h1 = o.h[0], h2 = o.h[1];
+    var d = o.prob - t;
+    var loss = bce(o.logit, t);
+
+    var margin = Math.abs(o.prob - 0.5);
+    var judge = margin < 0.05 ? '几乎贴着 0.5，等于没有判断'
+      : margin < 0.2 ? '有一点倾向，但很含糊'
+      : margin < 0.4 ? '比较明确' : '非常笃定';
+    var dir = ((o.prob >= 0.5 ? 1 : 0) === t) ? '方向是对的' : '方向是反的';
+
+    var html = '';
+    html += stepHtml('1', '读入样本',
+      '网络一次看一个样本。这里选的是 (' + x[0] + ',' + x[1] + ')，正确答案 t = ' + t + '。',
+      'x₁ = ' + x[0] + '    x₂ = ' + x[1] + '    t = ' + t);
+
+    html += stepHtml('2', '隐藏层加权和',
+      '每个隐藏单元先把自己收到的输入乘权重、加偏置，得到一个原始分数 z。',
+      'z₁ = W₁₁·x₁ + W₂₁·x₂ + b₁\n   = ' + fmt(w11, 2) + '×' + x[0] + ' + (' + fmt(w21, 2) + ')×' + x[1] +
+      ' + (' + fmt(b1, 2) + ')\n   = <b>' + fmt(z1, 3) + '</b>\n' +
+      'z₂ = W₁₂·x₁ + W₂₂·x₂ + b₂\n   = <b>' + fmt(z2, 3) + '</b>');
+
+    html += stepHtml('3', 'sigmoid 激活',
+      'sigmoid 把任意分数压到 0 到 1 之间，可以理解成「举手程度」。',
+      'h₁ = σ(z₁) = 1 / (1 + e^(−' + fmt(z1, 2) + ')) = <b>' + fmt(h1, 3) + '</b>\n' +
+      'h₂ = σ(z₂) = <b>' + fmt(h2, 3) + '</b>');
+
+    html += stepHtml('4', '输出层加权和',
+      '输出层把两个隐藏单元的值加权相加，得到 logit。',
+      'logit = v₁·h₁ + v₂·h₂ + b_out\n      = ' + fmt(v1, 2) + '×' + fmt(h1, 3) + ' + ' +
+      fmt(v2, 2) + '×' + fmt(h2, 3) + ' + (' + fmt(bo, 2) + ')\n      = <b>' + fmt(o.logit, 3) + '</b>');
+
+    html += stepHtml('5', 'sigmoid 得到概率',
+      '再过一次 sigmoid，logit 就变成「灯亮的概率」。现在 p = ' + fmt(o.prob, 3) + '，' + judge + '，' + dir + '。',
+      'p = σ(logit) = 1 / (1 + e^(−' + fmt(o.logit, 3) + ')) = <b>' + fmt(o.prob, 4) + '</b>');
+
+    html += stepHtml('6', '算损失',
+      '二元交叉熵衡量「预测概率」和「正确答案」差多远。t = 1 时看 −ln p，t = 0 时看 −ln(1−p)。',
+      'L = −[t·ln p + (1−t)·ln(1−p)]\n  = ' +
+      (t === 1 ? '−ln(' + fmt(o.prob, 4) + ')' : '−ln(1−' + fmt(o.prob, 4) + ')') +
+      '\n  = <b>' + fmt(loss, 4) + '</b>');
+
+    html += stepHtml('7', '反向传播 + 步长',
+      '链式法则把误差一层层传回去，得到每个参数的梯度；Adam 再把梯度变成实际步长（这里只是预览）。',
+      '∂L/∂v₁ = (p − t)·h₁ = ' + fmt(d, 4) + '×' + fmt(h1, 3) + ' = <b>' + fmt(getIn(gp.g, ['v', 0]), 4) + '</b>\n' +
+      '∂L/∂b_out = p − t = <b>' + fmt(getIn(gp.g, ['bo']), 4) + '</b>\n' +
+      '∂L/∂W₁₁ = (p − t)·v₁·h₁(1−h₁)·x₁ = <b>' + fmt(getIn(gp.g, ['W', 0, 0]), 4) + '</b>\n' +
+      'Adam 这一步：Δv₁ = <b>' + fmt(getIn(ad.delta, ['v', 0]), 4) + '</b>　（9 个参数完整结果在下一节）');
+
+    document.getElementById('steps-list').innerHTML = html;
+  }
+
+  /* ============ one Adam step ============ */
+  function signCls(v) {
+    return v > 1e-9 ? 'pos' : (v < -1e-9 ? 'neg' : '');
+  }
+
+  function renderOne() {
+    var k = man.sample, x = X[k], t = T[k];
+    var gp = gradOne(manual, k), o = gp.out;
+    var ad = adamPreview(gp.g, man.m, man.s, man.t + 1);
+    var z1 = manual.W[0][0] * x[0] + manual.W[1][0] * x[1] + manual.b[0];
+    var z2 = manual.W[0][1] * x[0] + manual.W[1][1] * x[1] + manual.b[1];
+    var loss = bce(o.logit, t);
+
+    document.getElementById('one-sample-label').textContent =
+      '(' + LABELS[k][0] + ',' + LABELS[k][1] + ') · t = ' + t + ' · 已走 ' + man.t + ' 步';
+
+    var rows = [
+      ['输入 (x₁, x₂)', '(' + x[0] + ', ' + x[1] + ')'],
+      ['隐藏层 (z₁, z₂)', fmt(z1, 3) + ' / ' + fmt(z2, 3)],
+      ['激活 (h₁, h₂)', fmt(o.h[0], 3) + ' / ' + fmt(o.h[1], 3)],
+      ['logit', fmt(o.logit, 3)],
+      ['概率 p', '<b>' + fmt(o.prob, 4) + '</b>'],
+      ['单样本损失 L', fmt(loss, 4)],
+      ['误差 p − t', fmt(o.prob - t, 4)]
+    ];
+    document.getElementById('one-forward').innerHTML = rows.map(function (r) {
+      return '<div class="kv__row"><span class="kv__k">' + r[0] + '</span><span class="kv__v">' + r[1] + '</span></div>';
+    }).join('');
+
+    var html = '';
+    PARAMS.forEach(function (p) {
+      var gv = getIn(gp.g, p.path);
+      var dv = getIn(ad.delta, p.path);
+      var nv = getIn(manual, p.path) + dv;
+      html += '<tr><td class="num">' + p.key + '</td>' +
+        '<td class="num ' + signCls(gv) + '">' + fmt(gv, 4) + '</td>' +
+        '<td class="num ' + signCls(dv) + '">' + (dv >= 0 ? '+' : '') + fmt(dv, 4) + '</td>' +
+        '<td class="num">' + fmt(nv, 4) + '</td></tr>';
+    });
+    document.getElementById('one-table').innerHTML = html;
+  }
+
+  document.getElementById('btn-one-apply').addEventListener('click', function () {
+    var gp = gradOne(manual, man.sample);
+    var ad = adamPreview(gp.g, man.m, man.s, man.t + 1);
+    PARAMS.forEach(function (p) {
+      setIn(manual, p.path, getIn(manual, p.path) + getIn(ad.delta, p.path));
+    });
+    man.m = ad.m;
+    man.s = ad.s;
+    man.t += 1;
+    renderManual();
+  });
+
+  document.getElementById('btn-one-reset').addEventListener('click', function () {
+    man.m = zerosLike();
+    man.s = zerosLike();
+    man.t = 0;
+    renderManual();
+  });
+
+  document.getElementById('manual-reset').addEventListener('click', function () {
+    manual = cloneParams(INIT);
+    man.m = zerosLike();
+    man.s = zerosLike();
+    man.t = 0;
+    renderManual();
+  });
+
+  document.getElementById('manual-table').addEventListener('click', function (e) {
+    var tr = e.target.closest('tr[data-row]');
+    if (!tr) return;
+    man.sample = parseInt(tr.getAttribute('data-row'), 10);
+    renderManual();
+  });
+
+  /* ============ init ============ */
+  netMain = buildNet('net-lines', 'net-inputs', 'net-hidden', 'net-output');
+  manualNet = buildNet('net-m-lines', 'net-m-inputs', 'net-m-hidden', 'net-m-output');
+
+  buildSliders();
+  buildSampleChips();
+
   state.run = train(state.lr, EPOCHS, true);
-  render();
   buildLrTable();
+  buildAnchorStats();
+  render();
+  renderManual();
+  initSpy();
+
+  try {
+    var saved = localStorage.getItem('mlp-tone');
+    if (saved === 'plain' || saved === 'strict' || saved === 'both') setTone(saved);
+  } catch (err) {}
 
   var resizeTimer = null;
   window.addEventListener('resize', function () {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(function () {
       if (!state.playing) render();
+      renderManual();
     }, 120);
   });
 })();
 </script>
-
 </body>
 </html>
