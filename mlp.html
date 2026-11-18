@@ -173,6 +173,24 @@
   .story-arrow { align-self: center; font-family: var(--font-mono); color: var(--muted); font-size: 1.1rem; }
   .story-note { font-size: .82rem; color: var(--muted); text-align: center; margin-top: 10px; }
 
+  .why {
+    background: var(--card); border: 1px solid var(--rule-strong);
+    border-left: 4px solid var(--accent); border-radius: var(--radius);
+    padding: 20px 22px; margin-top: 26px; max-width: 840px;
+  }
+  .why__q { font-weight: 700; font-size: 1.02rem; color: var(--ink); }
+  .why p { font-size: .93rem; color: var(--ink-soft); margin-top: 10px; }
+  .why-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
+  .why-list li {
+    background: var(--bg); border: 1px solid var(--rule); border-radius: 9px;
+    padding: 10px 13px; font-size: .89rem; color: var(--ink-soft);
+  }
+  .why-list b { color: var(--ink); }
+  .why-list i {
+    font-family: var(--font-mono); font-style: normal;
+    color: var(--accent); font-size: .78rem; margin-right: 6px;
+  }
+
   .xor-table { max-width: 420px; margin-top: 26px; }
   .xor-table table { border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; background: var(--card); }
   .xor-table th, .xor-table td { text-align: center; padding: 9px 10px; }
@@ -407,7 +425,7 @@
   <div class="wrap hero__inner">
     <p class="hero__kicker">Homework 02 · 第二次作业 / 第 15 节</p>
     <h1 class="hero__title">MLP 是怎么学会 XOR 的</h1>
-    <p class="hero__lead">两扇门、两位门卫、一盏灯。这页从这个小故事出发，先手动调参数，再把一次计算拆成七步，然后只走一步梯度，最后看完整 300 轮训练。所有数字都是浏览器里现算的。</p>
+    <p class="hero__lead">XOR 不是玩具题，而是检验「多层网络到底比一条直线强在哪」的最小实验。这页从两扇门的小故事出发，先手动调参数，再把一次计算拆成七步，然后只走一步梯度，最后看完整 300 轮训练。所有数字都是浏览器里现算的。</p>
     <div class="hero__meta">
       <span class="chip chip--dark">2 → 2 → 1</span>
       <span class="chip chip--dark">4 个 XOR 样本</span>
@@ -448,10 +466,23 @@
       <div class="section__head">
         <p class="eyebrow">01 / 背景与故事</p>
         <h2>两扇门、两位门卫、一盏灯</h2>
-        <p>先把 XOR 变成一个能看见的场景。故事只是入口，后面的数学一点都不会少。</p>
+        <p>XOR 不是一道玩具题，它是一块最小的试金石：只有 4 种情况，模型有没有真学会，一眼就能看出来。</p>
       </div>
 
-      <div class="prose" style="margin-top:26px">
+      <div class="why">
+        <p class="why__q">先说清楚：为什么偏偏拿 XOR 当这道题的题目？</p>
+        <p>如果让模型去认猫，它答错了，你很难说清是哪一步没学会——可能是毛色、可能是光线、可能是背景。XOR 只有 4 种情况，规则又反直觉，<mark class="key">错一个都藏不住</mark>。所以它是最小、最便宜的照妖镜：模型说自己「学会了」，你马上能查——4 个答案对几个？错在哪个？</p>
+        <p>更重要的是，XOR 代表了一整类现实问题：<b>两个条件里恰好只有一个成立时，才做某件事。</b>这类判断，靠「一条直线」永远做不对，必须先分开看、再合起来看——这正是多层网络存在的理由。比如：</p>
+        <ul class="why-list">
+          <li><i>①</i><b>值班补位</b>：两个人里恰好只来一个，才需要叫替班；两个都来、或都不来，都不用管。</li>
+          <li><i>②</i><b>双传感器报警</b>：两个读数里恰好一个异常才报警。两个都正常是没事；两个都异常，多半是线断了，也不是「局部异常」。</li>
+          <li><i>③</i><b>发优惠券</b>：只在「新用户」和「没下过单」里恰好满足一个时才发；纯新客、纯老客都不发。</li>
+        </ul>
+        <p>这三条的共同点：<b>单看任何一个条件都不够，必须合起来判断。</b>这页要练的就是这种「组合条件」的能力，而不只是算出 4 个 0 和 1。</p>
+      </div>
+
+      <div class="prose" style="margin-top:30px">
+        <h3>把它变成一个能看见的场景</h3>
         <p>想象一个门厅：左边一扇门 <b>x₁</b>，右边一扇门 <b>x₂</b>，开着记 1、关着记 0。天花板上有一盏灯，亮记 1、灭记 0。规则很别扭——<mark class="key">只有一扇门开着时，灯才亮</mark>；两扇都关、或者两扇都开，灯都是灭的。这就是 XOR（异或）。</p>
         <p>门口站着两位门卫。甲只负责「左门开、右门关」，乙只负责「左门关、右门开」。谁看到自己负责的情况，谁就举手（输出接近 1）。灯泡最后把两人的手综合一下：有人举手，灯就亮。</p>
       </div>
@@ -475,7 +506,7 @@
           <div class="story-box">两人任一举手</div>
         </div>
       </div>
-      <p class="story-note">四位门卫/灯的组合规则，就是下面这张真值表。</p>
+      <p class="story-note">四种开关组合和灯的结果，就是下面这张真值表。</p>
 
       <div class="table-wrap xor-table">
         <table>
@@ -490,26 +521,28 @@
       </div>
 
       <div class="prose" style="margin-top:30px">
-        <p>为什么非要两位门卫？只派一个人（单层、只有一条直线）做不到：四个情况在平面上是交叉站位的，一刀切下去总会切错两个。两位门卫各自盯一个角落，灯再把他们加起来，问题就被拆成了两个简单判断。</p>
+        <h3>为什么一个人不行：拿尺子在纸上画一刀</h3>
+        <p>把 4 种情况画在一张纸上：横轴是左门，纵轴是右门，四个情况正好落在四个角。<b>灯亮的两个角在左上和右下，灯灭的两个角在左下和右上。</b>现在拿一把尺子画一条直线，要求「亮」全在一边、「灭」全在另一边——怎么斜都不行，总有一个亮的一个灭的挤在同一侧。</p>
+        <p>两位门卫的办法就朴素了：甲只认「左上这个角」，乙只认「右下这个角」，各自圈住自己那一小块。灯不关心细节，只问一句：有人举手吗？有人就亮。一个「怎么切都不对」的问题，就这样被拆成两个「很好切」的小问题。</p>
       </div>
 
       <div class="qa-grid">
         <article class="qa">
           <p class="eyebrow">为了什么</p>
-          <h3>一条直线分不开</h3>
-          <div class="tone-plain"><span class="tone-label">通俗版</span><p>XOR 的四个点在平面上交叉站着，任何一条直线都没法把「亮」和「灭」分到两边。MLP 要解决的就是这种「一刀切不动」的问题。</p></div>
-          <div class="tone-strict"><span class="tone-label">严谨版</span><p>单层感知机的决策边界是输入空间中的一张超平面。XOR 的正负样本不线性可分，所以单层模型不可能以零误差分类。</p></div>
+          <h3>练的是「组合条件」</h3>
+          <div class="tone-plain"><span class="tone-label">通俗版</span><p>这道题的真正目的不是算出这 4 个 0 和 1，而是练一件更普遍的事：<b>有些判断，单看一个条件永远不对，必须让机器自己先拆出中间结论，再合起来用。</b>XOR 是这件事最小的例子，学会它，就学会了一类问题。</p></div>
+          <div class="tone-strict"><span class="tone-label">严谨版</span><p>XOR 是线性不可分的布尔函数，任何单层线性模型都无法零误差拟合。把它作为最小基准，可以检验模型是否具备至少一层非线性特征变换能力。</p></div>
         </article>
         <article class="qa">
           <p class="eyebrow">为什么可以</p>
           <h3>隐藏层换了一组坐标</h3>
-          <div class="tone-plain"><span class="tone-label">通俗版</span><p>隐藏层把原来的两个数字换成两个新数字（h₁、h₂）。换完之后，本来交叉的四个点被摆到了能用直线分开的位置。这个「换法」不是人写死的，是 W、b 学出来的。</p></div>
+          <div class="tone-plain"><span class="tone-label">通俗版</span><p>一条直线只能切一刀，所以切不开。隐藏层先把 4 个点搬到新位置（h₁、h₂ 就是新坐标），搬到能一刀切开的地方，输出层再切。<b>关键：搬到哪儿不是人规定的，是训练自己找出来的。</b></p></div>
           <div class="tone-strict"><span class="tone-label">严谨版</span><p>隐藏层计算 h = σ(Wx + b)，把输入映射到新的特征空间。只要隐藏单元足够，这个映射可以把 XOR 的四个样本送到线性可分的位置，输出层只需在新空间里确定一个线性判别面。</p></div>
         </article>
         <article class="qa">
           <p class="eyebrow">怎么做</p>
           <h3>四步循环 300 次</h3>
-          <div class="tone-plain"><span class="tone-label">通俗版</span><p>前向算出预测 → 和答案比、算损失 → 反向把责任分回每个参数（梯度）→ 按梯度把参数挪一小步。重复 300 次，门卫就慢慢站对了位置。</p></div>
+          <div class="tone-plain"><span class="tone-label">通俗版</span><p>前向算出预测 → 和答案比、算损失 → 反向把责任分回每个参数（梯度）→ 按梯度把参数挪一小步。重复 300 次，门卫就慢慢站对了位置。<b>从头到尾没人告诉它该站哪，只靠这 4 个样本和这只循环。</b></p></div>
           <div class="tone-strict"><span class="tone-label">严谨版</span><p>前向传播得到 logits 与概率；以二元交叉熵为损失；反向传播用链式法则求各参数偏导；Adam 依据一阶、二阶矩估计做自适应步长更新。整批 4 个样本每轮更新一次。</p></div>
         </article>
       </div>
@@ -521,7 +554,7 @@
       <div class="section__head">
         <p class="eyebrow">02 / 手动调参</p>
         <h2>先亲手拧一遍这 9 个旋钮</h2>
-        <p>训练之前，先自己调。每个滑杆对应一个可学习参数，拖动时右边的网络、决策边界、隐藏层坐标会立刻重算。你会很快发现：随便调通常分不开，凑出正确的形状并不容易。</p>
+        <p>训练之前，先自己调。每个滑杆对应一个可学习参数，拖动时右边的网络、决策边界、隐藏层坐标会立刻重算。<b>目标只有一个：让 4 个点都被自己颜色的区域包住。</b>试两下就会发现，瞎调基本分不开——这正是需要训练的原因。</p>
       </div>
 
       <div class="manual-grid">
