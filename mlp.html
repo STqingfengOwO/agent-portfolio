@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第 15 节作业 · MLP 学习参数的实现与可视化</title>
+<meta name="description" content="2-2-1 MLP 学习 XOR：用反向传播和 Adam 训练，实时观察权重、偏置、决策边界和隐藏层表示的变化。">
+<style>
+  @font-face {
+    font-family: 'Instrument Sans';
+    src: url('./_shared/fonts/InstrumentSans-Regular.ttf') format('truetype');
+    font-weight: 400; font-display: swap;
+  }
+  @font-face {
+    font-family: 'Instrument Sans';
+    src: url('./_shared/fonts/InstrumentSans-Bold.ttf') format('truetype');
+    font-weight: 700; font-display: swap;
+  }
+  @font-face {
+    font-family: 'GeistMono';
+    src: url('./_shared/fonts/GeistMono-Regular.ttf') format('truetype');
+    font-weight: 400; font-display: swap;
+  }
+  @font-face {
+    font-family: 'BigShoulders';
+    src: url('./_shared/fonts/BigShoulders-Bold.ttf') format('truetype');
+    font-weight: 700; font-display: swap;
+  }
+</style>
+<style>
+  :root {
+    --bg: #FAF9F6;
+    --bg2: #F1EFE8;
+    --card: #FFFFFF;
+    --ink: #14161B;
+    --ink-soft: #34383F;
+    --muted: #64686E;
+    --rule: #E2DED4;
+    --rule-strong: #CFC9BB;
+    --accent: #3B5BFF;
+    --accent2: #D6560F;
+    --deep: #0E1014;
+    --on-deep: #F2F0EA;
+    --font: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+    --font-mono: 'GeistMono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --font-display: 'BigShoulders', 'Instrument Sans', sans-serif;
+    --max: 1120px;
+    --radius: 14px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body {
+    font-family: var(--font); font-size: 16px; line-height: 1.75;
+    color: var(--ink); background: var(--bg);
+    -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  h1, h2, h3, h4 { line-height: 1.22; font-weight: 700; letter-spacing: -0.015em; }
+  a { color: inherit; }
+  img, svg { max-width: 100%; }
+  ::selection { background: rgba(59,91,255,.18); }
+  .wrap { width: 100%; max-width: var(--max); margin: 0 auto; padding: 0 28px; }
+  .eyebrow {
+    font-family: var(--font-mono); font-size: .72rem; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--accent); font-weight: 700;
+  }
+  mark.key { background: none; color: var(--accent); font-weight: 600; }
+
+  /* ===== Hero ===== */
+  .hero { position: relative; background: var(--deep); color: var(--on-deep); overflow: hidden; isolation: isolate; }
+  .hero::before {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 78% 14%, rgba(59,91,255,.30), transparent 44%),
+      radial-gradient(circle at 10% 92%, rgba(214,86,15,.20), transparent 46%);
+    z-index: 0;
+  }
+  .hero::after {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+    background-size: 58px 58px;
+    -webkit-mask-image: radial-gradient(ellipse at 62% 38%, #000 0%, transparent 74%);
+    mask-image: radial-gradient(ellipse at 62% 38%, #000 0%, transparent 74%);
+    z-index: 1;
+  }
+  .hero__inner { position: relative; z-index: 2; padding-top: 86px; padding-bottom: 70px; }
+  .hero__kicker {
+    font-family: var(--font-mono); font-size: .74rem; letter-spacing: .2em;
+    text-transform: uppercase; color: rgba(242,240,234,.62); font-weight: 700;
+  }
+  .hero__title { font-size: clamp(2rem, 5.2vw, 3.7rem); letter-spacing: -.03em; margin-top: 18px; max-width: 18em; }
+  .hero__lead { font-size: clamp(.98rem, 1.5vw, 1.08rem); color: rgba(242,240,234,.72); max-width: 660px; margin-top: 22px; }
+  .hero__meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px;
+    border-radius: 999px; border: 1px solid var(--rule-strong);
+    font-family: var(--font-mono); font-size: .74rem; color: var(--ink-soft);
+    background: var(--card); white-space: nowrap;
+  }
+  .chip--dark { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.18); color: rgba(242,240,234,.86); }
+
+  /* ===== Nav ===== */
+  .nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(250,249,246,.92); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .nav__inner { display: flex; align-items: center; gap: 22px; height: 62px; }
+  .nav__brand {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-family: var(--font-mono); font-size: .78rem; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--ink); text-decoration: none;
+    flex: none;
+  }
+  .nav__brand i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: block; }
+  .nav__links { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; margin-left: auto; }
+  .nav__links::-webkit-scrollbar { display: none; }
+  .nav__links a {
+    font-size: .88rem; color: var(--muted); text-decoration: none;
+    padding: 7px 12px; border-radius: 8px; white-space: nowrap;
+    transition: color .15s ease, background .15s ease;
+  }
+  .nav__links a:hover { color: var(--ink); background: var(--bg2); }
+  .nav__links a.is-active { color: var(--accent); background: rgba(59,91,255,.08); font-weight: 600; }
+
+  /* ===== Sections ===== */
+  .section { padding: 72px 0; }
+  .section--tint { background: var(--bg2); }
+  .section__head { max-width: 720px; }
+  .section__head h2 { font-size: clamp(1.5rem, 3vw, 2.1rem); margin-top: 12px; }
+  .section__head p { color: var(--muted); margin-top: 14px; }
+  .prose { max-width: 760px; }
+  .prose p + p { margin-top: 14px; }
+
+  /* ===== Info grid ===== */
+  .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 34px; }
+  .info {
+    background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius);
+    padding: 18px 18px 16px;
+  }
+  .info__k { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .info__v { margin-top: 8px; font-weight: 700; font-size: 1.02rem; }
+  .info__s { margin-top: 4px; font-size: .82rem; color: var(--muted); }
+
+  /* ===== Lab ===== */
+  .lab { margin-top: 36px; }
+  .controls {
+    background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius);
+    padding: 16px 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px;
+  }
+  .btn {
+    font-family: var(--font); font-size: .88rem; font-weight: 600;
+    border: 1px solid var(--rule-strong); background: var(--card); color: var(--ink);
+    padding: 9px 16px; border-radius: 9px; cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .btn:hover { background: var(--bg2); }
+  .btn--primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn--primary:hover { background: #2f4ce0; }
+  .ctl-group { display: flex; align-items: center; gap: 8px; font-size: .84rem; color: var(--muted); }
+  .ctl-group select {
+    font-family: var(--font-mono); font-size: .82rem; padding: 7px 9px;
+    border: 1px solid var(--rule-strong); border-radius: 8px; background: var(--card); color: var(--ink);
+  }
+  input[type="range"] { accent-color: var(--accent); width: 150px; }
+  .spacer { flex: 1 1 auto; }
+  .status { font-family: var(--font-mono); font-size: .78rem; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: 6px 16px; }
+  .status b { color: var(--accent); }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .panel {
+    background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius);
+    padding: 16px 16px 12px; display: flex; flex-direction: column; min-width: 0;
+  }
+  .panel__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 6px; flex-wrap: wrap; }
+  .panel__head h3 { font-size: .98rem; }
+  .panel__head span { font-family: var(--font-mono); font-size: .7rem; color: var(--muted); }
+  .panel__note { font-size: .8rem; color: var(--muted); margin-top: 6px; }
+  canvas { width: 100%; display: block; }
+  #c-net { height: 292px; }
+  #net { width: 100%; height: 292px; display: block; }
+  #c-boundary, #c-hidden { height: 300px; }
+  #c-loss { height: 228px; }
+  #c-weights, #c-biases { height: 228px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; font-family: var(--font-mono); font-size: .7rem; color: var(--muted); }
+  .legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+
+  /* ===== Table ===== */
+  .table-wrap { overflow-x: auto; margin-top: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  th { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  td.num { font-family: var(--font-mono); }
+  tr:last-child td { border-bottom: 0; }
+  .pos { color: var(--accent); }
+  .neg { color: var(--accent2); }
+  .bad { color: var(--accent2); font-weight: 600; }
+  .good { color: #1F7A5C; font-weight: 600; }
+
+  /* ===== Insight cards ===== */
+  .insights { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 32px; }
+  .insight { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: 20px; }
+  .insight h3 { font-size: 1rem; }
+  .insight p { font-size: .9rem; color: var(--ink-soft); margin-top: 10px; }
+  .insight .eyebrow { font-size: .64rem; }
+
+  /* ===== Code ===== */
+  pre {
+    background: #0E1014; color: #E8E6E0; border-radius: var(--radius);
+    padding: 20px 20px 18px; overflow-x: auto; font-family: var(--font-mono);
+    font-size: .78rem; line-height: 1.72; margin-top: 14px;
+    border: 1px solid #232830;
+  }
+  pre .c { color: #7F8A99; }
+  pre .k { color: #8FB2FF; }
+  .code-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 26px; }
+  .code-head h3 { font-size: .98rem; }
+  .code-head span { font-family: var(--font-mono); font-size: .7rem; color: var(--muted); }
+
+  /* ===== Footer ===== */
+  .site-footer { background: var(--deep); color: rgba(242,240,234,.78); padding: 66px 0 44px; position: relative; overflow: hidden; }
+  .site-footer::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at 88% 8%, rgba(59,91,255,.22), transparent 46%);
+  }
+  .site-footer .wrap { position: relative; z-index: 1; }
+  .site-footer h2 { color: var(--on-deep); font-size: clamp(1.5rem, 3vw, 2rem); margin-top: 12px; max-width: 22em; }
+  .site-footer p { margin-top: 16px; max-width: 620px; font-size: .94rem; }
+  .foot-meta {
+    margin-top: 42px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,.14);
+    display: flex; flex-wrap: wrap; gap: 6px 24px;
+    font-family: var(--font-mono); font-size: .72rem; color: rgba(242,240,234,.5);
+  }
+
+  @media (max-width: 900px) {
+    .info-grid { grid-template-columns: 1fr 1fr; }
+    .grid2 { grid-template-columns: 1fr; }
+    .insights { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    .wrap { padding: 0 18px; }
+    .section { padding: 52px 0; }
+    .info-grid { grid-template-columns: 1fr; }
+    .nav__inner { height: 56px; gap: 10px; }
+    .nav__brand { font-size: .7rem; }
+    .controls { padding: 14px; }
+    input[type="range"] { width: 110px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap hero__inner">
+    <p class="hero__kicker">Homework 02 · 第二篇 / 第 15 节</p>
+    <h1 class="hero__title">MLP 的学习参数<br>是怎么变的</h1>
+    <p class="hero__lead">用课堂上的 2—2—1 网络学习 XOR：2 个输入、2 个 sigmoid 隐藏单元、1 个输出，二元交叉熵 + Adam，学习率 0.03，训练 300 轮。下面这页会真的训练一遍，并把每一步的参数画出来。</p>
+    <div class="hero__meta">
+      <span class="chip chip--dark">4 个 XOR 样本</span>
+      <span class="chip chip--dark">9 个可学习参数</span>
+      <span class="chip chip--dark">300 轮 · 整批训练</span>
+      <span class="chip chip--dark">纯前端实现，无外部依赖</span>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="页面导航">
+  <div class="wrap nav__inner">
+    <a class="nav__brand" href="./index.html"><i aria-hidden="true"></i>My Tools</a>
+    <div class="nav__links">
+      <a href="#task">任务</a>
+      <a href="#lab" class="is-active">实验台</a>
+      <a href="#params">参数解读</a>
+      <a href="#code">实现</a>
+      <a href="./index.html">← 回到首页</a>
+    </div>
+  </div>
+</nav>
+
+<main>
+
+  <!-- 01 任务 -->
+  <section class="section section--tint" id="task">
+    <div class="wrap">
+      <div class="section__head">
+        <p class="eyebrow">01 / 任务</p>
+        <h2>要解决什么，用什么设置</h2>
+        <p>XOR 的四个样本中，(0,1) 和 (1,0) 输出 1，(0,0) 和 (1,1) 输出 0。它们在平面上交错排列，一条直线分不开，所以单层感知器做不到；加一个隐藏层，把输入先变成中间特征，输出层再用一条直线就能分开。</p>
+      </div>
+
+      <div class="info-grid">
+        <div class="info">
+          <div class="info__k">Structure</div>
+          <div class="info__v">2 → 2 → 1</div>
+          <div class="info__s">两个 sigmoid 隐藏单元</div>
+        </div>
+        <div class="info">
+          <div class="info__k">Loss</div>
+          <div class="info__v">二元交叉熵</div>
+          <div class="info__s">直接作用在 logits 上</div>
+        </div>
+        <div class="info">
+          <div class="info__k">Optimizer</div>
+          <div class="info__v">Adam · lr = 0.03</div>
+          <div class="info__s">β₁ 0.9 / β₂ 0.999</div>
+        </div>
+        <div class="info">
+          <div class="info__k">Training</div>
+          <div class="info__v">300 轮 · 整批</div>
+          <div class="info__s">4 个样本一起更新一次</div>
+        </div>
+      </div>
+
+      <div class="prose" style="margin-top:34px">
+        <p>可学习的参数一共 9 个：输入到隐藏层的权重 <b>W</b>（2×2）、隐藏层偏置 <b>b</b>（2 个）、隐藏层到输出的权重 <b>v</b>（2 个）、输出偏置 <b>b<sub>out</sub></b>（1 个）。初值沿用课堂代码里的设定，所以每次打开看到的过程是一样的。</p>
+        <p>必须坦白：<mark class="key">这些不是「训练出来的最优解」</mark>，而是从一组人为设定的初值出发，用梯度下降一点点改出来的结果。下面每一张图都对应真实的参数更新，不是预先画好的示意。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 实验台 -->
+  <section class="section" id="lab">
+    <div class="wrap">
+      <div class="section__head">
+        <p class="eyebrow">02 / 实验台</p>
+        <h2>一边训练，一边看参数</h2>
+        <p>点「开始训练」自动播放，也可以拖时间轴或单步查看。切换学习率会重新训练，下面所有图表都会跟着变。</p>
+      </div>
+
+      <div class="lab">
+        <div class="controls">
+          <button class="btn btn--primary" id="btn-play" type="button">开始训练</button>
+          <button class="btn" id="btn-step" type="button">单步 +1</button>
+          <button class="btn" id="btn-reset" type="button">重置</button>
+          <div class="ctl-group">
+            <label for="epoch">轮次</label>
+            <input type="range" id="epoch" min="0" max="300" value="0" step="1">
+            <span id="epoch-label" style="font-family:var(--font-mono);min-width:3.2em;display:inline-block">0</span>
+          </div>
+          <div class="ctl-group">
+            <label for="lr">学习率</label>
+            <select id="lr">
+              <option value="0.001">0.001</option>
+              <option value="0.01">0.01</option>
+              <option value="0.03" selected>0.03（课堂设置）</option>
+              <option value="0.1">0.1</option>
+              <option value="0.5">0.5</option>
+            </select>
+          </div>
+          <div class="spacer"></div>
+          <div class="status">
+            <span>loss <b id="st-loss">—</b></span>
+            <span>预测 <b id="st-pred">—</b></span>
+            <span id="st-acc">—</span>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="panel">
+            <div class="panel__head"><h3>网络结构与实时数值</h3><span>线宽 / 颜色 = 权重</span></div>
+            <svg id="net" viewBox="0 0 440 300" role="img" aria-label="2-2-1 多层感知机结构图">
+              <g id="net-lines" stroke-linecap="round"></g>
+              <g id="net-inputs" font-family="GeistMono, monospace"></g>
+              <g id="net-hidden" font-family="GeistMono, monospace"></g>
+              <g id="net-output" font-family="GeistMono, monospace"></g>
+            </svg>
+            <p class="panel__note">以输入 (1,0) 为例：节点里的数字是当前激活值，输出节点显示概率。蓝色为正权重、橙色为负权重，越粗绝对值越大。</p>
+          </div>
+
+          <div class="panel">
+            <div class="panel__head"><h3>决策边界</h3><span>输出概率 p(y=1)</span></div>
+            <canvas id="c-boundary"></canvas>
+            <p class="panel__note">蓝色区域判为 1、橙色判为 0。四个点若是都被正确颜色的区域包住，说明已经学会 XOR。</p>
+          </div>
+
+          <div class="panel">
+            <div class="panel__head"><h3>隐藏层表示</h3><span>(h₁, h₂) 平面</span></div>
+            <canvas id="c-hidden"></canvas>
+            <p class="panel__note">隐藏层把 4 个输入映射到新的坐标。训练到后面，两类点会被一条直线分开——这正是「隐藏层把 XOR 变成线性可分」。</p>
+          </div>
+
+          <div class="panel">
+            <div class="panel__head"><h3>损失曲线</h3><span>纵轴为对数刻度</span></div>
+            <canvas id="c-loss"></canvas>
+            <p class="panel__note">浅色是完整 300 轮的轨迹，深色是当前进度。二元交叉熵越小，预测越接近正确答案。</p>
+          </div>
+
+          <div class="panel">
+            <div class="panel__head"><h3>权重轨迹 W / v</h3><span>6 个权重</span></div>
+            <canvas id="c-weights"></canvas>
+            <div class="legend" id="legend-w">
+              <span><i style="background:#3B5BFF"></i>W₁₁</span>
+              <span><i style="background:#D6560F"></i>W₁₂</span>
+              <span><i style="background:#1F9D8F"></i>W₂₁</span>
+              <span><i style="background:#8C4BD6"></i>W₂₂</span>
+              <span><i style="background:#C9A227"></i>v₁</span>
+              <span><i style="background:#5A6270"></i>v₂</span>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel__head"><h3>偏置轨迹 b / b<sub>out</sub></h3><span>3 个偏置</span></div>
+            <canvas id="c-biases"></canvas>
+            <div class="legend" id="legend-b">
+              <span><i style="background:#3B5BFF"></i>b₁</span>
+              <span><i style="background:#D6560F"></i>b₂</span>
+              <span><i style="background:#1F9D8F"></i>b<sub>out</sub></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:16px">
+          <div class="panel__head"><h3>当前参数值</h3><span id="param-epoch">第 0 轮</span></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>参数</th><th>含义</th><th>初值</th><th>当前值</th><th>变化</th></tr>
+              </thead>
+              <tbody id="param-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 参数解读 -->
+  <section class="section section--tint" id="params">
+    <div class="wrap">
+      <div class="section__head">
+        <p class="eyebrow">03 / 解读</p>
+        <h2>这些参数各自在做什么</h2>
+        <p>训练完成后回头看，每个参数的变化都能对上它在网络里的角色。</p>
+      </div>
+
+      <div class="insights">
+        <article class="insight">
+          <p class="eyebrow">W · 输入 → 隐藏</p>
+          <h3>两个隐藏单元分工</h3>
+          <p>W 的四条连接让 h₁ 主要对「x₁=1 且 x₂=0」敏感，h₂ 主要对「x₁=0 且 x₂=1」敏感。两个单元各负责一个正类样本，XOR 就被拆成了两个可以相加的条件。</p>
+        </article>
+        <article class="insight">
+          <p class="eyebrow">b · 偏置</p>
+          <h3>控制单元何时被激活</h3>
+          <p>隐藏层偏置把 sigmoid 的转折点挪开。偏置太正会让单元对任何输入都接近 1，太负则一直沉默；训练就是在找合适的「门槛」。</p>
+        </article>
+        <article class="insight">
+          <p class="eyebrow">v · 隐藏 → 输出</p>
+          <h3>把两个条件合成一个判断</h3>
+          <p>输出层只是把 h₁、h₂ 加权相加再做一次 sigmoid。它的作用是「或」：任意一个隐藏单元被激活，就判为 1，所以 v 最后通常都为正。</p>
+        </article>
+      </div>
+
+      <div class="prose" style="margin-top:36px">
+        <p>另一个能直接看到的现象是<mark class="key">学习率的影响</mark>。同样 300 轮，学习率太小走不完，太大则会来回震荡。下表是同一份代码、同一组初值、只改学习率的结果：</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>学习率</th><th>首次 loss &lt; 0.05</th><th>第 300 轮 loss</th><th>XOR 预测</th><th>结论</th></tr>
+          </thead>
+          <tbody id="lr-body"></tbody>
+        </table>
+      </div>
+
+      <div class="prose" style="margin-top:22px">
+        <p style="font-size:.86rem;color:var(--muted)">注：这张表是页面加载时用同一套训练代码现场算出来的，没有预先写死。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 实现 -->
+  <section class="section" id="code">
+    <div class="wrap">
+      <div class="section__head">
+        <p class="eyebrow">04 / 实现</p>
+        <h2>训练和可视化的代码</h2>
+        <p>这页的可视化本身用 JavaScript 实现（浏览器里直接训练），下面是等价的 NumPy 版本，逻辑完全一致：手动前向、手动反向传播、Adam 更新，再用 matplotlib 画图。</p>
+      </div>
+
+      <div class="code-head">
+        <h3>① NumPy：手写前向 / 反向 / Adam</h3>
+        <span>mlp_xor.py</span>
+      </div>
+<pre><code><span class="c"># 2-2-1 MLP 学习 XOR：不用框架，手动实现反向传播</span>
+import numpy as np
+
+X = np.array([[0., 0.], [0., 1.], [1., 0.], [1., 1.]])
+t = np.array([[0.], [1.], [1.], [0.]])
+
+W  = np.array([[2., -2.], [-2., 2.]])   <span class="c"># 2 输入 → 2 隐藏</span>
+b  = np.array([-1., -1.])
+v  = np.array([[3.], [3.]])             <span class="c"># 2 隐藏 → 1 输出</span>
+bo = np.array([-2.5])
+params = [W, b, v, bo]
+
+m = [np.zeros_like(p) for p in params]  <span class="c"># Adam 一阶矩</span>
+s = [np.zeros_like(p) for p in params]  <span class="c"># Adam 二阶矩</span>
+lr, b1, b2, eps = 0.03, 0.9, 0.999, 1e-7
+
+def sigmoid(z):
+    return 1 / (1 + np.exp(-z))
+
+history = {"loss": [], "W": [], "v": []}
+
+for epoch in range(1, 301):
+    h = sigmoid(X @ W + b)              <span class="c"># (4, 2)</span>
+    logit = h @ v + bo                  <span class="c"># (4, 1)</span>
+    p = sigmoid(logit)
+
+    <span class="c"># 二元交叉熵（在 logits 上算，数值更稳）</span>
+    loss = np.mean(np.maximum(logit, 0) - logit * t
+                   + np.log1p(np.exp(-np.abs(logit))))
+
+    <span class="c"># 反向传播：链式法则逐层求导</span>
+    dlogit = (p - t) / len(X)           <span class="c"># (4, 1)</span>
+    gv  = h.T @ dlogit                  <span class="c"># (2, 1)</span>
+    gbo = dlogit.sum(axis=0)
+    dpre = (dlogit @ v.T) * h * (1 - h) <span class="c"># (4, 2) 经过 sigmoid 的导数</span>
+    gW = X.T @ dpre                     <span class="c"># (2, 2)</span>
+    gb = dpre.sum(axis=0)               <span class="c"># (2,)</span>
+
+    <span class="c"># Adam 更新</span>
+    for i, (param, g) in enumerate(zip(params, [gW, gb, gv, gbo])):
+        m[i] = b1 * m[i] + (1 - b1) * g
+        s[i] = b2 * s[i] + (1 - b2) * g * g
+        m_hat = m[i] / (1 - b1 ** epoch)
+        s_hat = s[i] / (1 - b2 ** epoch)
+        param -= lr * m_hat / (np.sqrt(s_hat) + eps)
+
+    history["loss"].append(loss)
+    history["W"].append(W.copy())
+    history["v"].append(v.copy())
+
+print("预测:", (p.ravel() >= 0.5).astype(int).tolist())
+print("W =\n", np.round(W, 3))
+print("b =", np.round(b, 3), " v =", np.round(v.ravel(), 3),
+      " b_out =", round(float(bo), 3))
+</code></pre>
+
+      <div class="code-head">
+        <h3>② matplotlib：把学习参数画出来</h3>
+        <span>mlp_visualize.py</span>
+      </div>
+<pre><code>import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots(2, 2, figsize=(10, 7.5))
+
+<span class="c"># 1. 损失曲线</span>
+ax[0, 0].semilogy(history["loss"])
+ax[0, 0].set_title("loss")
+ax[0, 0].set_xlabel("epoch")
+
+<span class="c"># 2. 决策边界：在输入平面撒网格，逐个算概率</span>
+gx, gy = np.meshgrid(np.linspace(-0.2, 1.2, 120),
+                     np.linspace(-0.2, 1.2, 120))
+grid = np.stack([gx.ravel(), gy.ravel()], axis=1)
+prob = sigmoid(sigmoid(grid @ W + b) @ v + bo).reshape(gx.shape)
+ax[0, 1].contourf(gx, gy, prob, levels=20, cmap="coolwarm", alpha=.75)
+ax[0, 1].scatter(X[:, 0], X[:, 1], c=t.ravel(),
+                 cmap="coolwarm", edgecolor="k", s=90)
+ax[0, 1].set_title("decision boundary")
+
+<span class="c"># 3. 隐藏层表示</span>
+H = sigmoid(X @ W + b)
+ax[1, 0].scatter(H[:, 0], H[:, 1], c=t.ravel(),
+                 cmap="coolwarm", edgecolor="k", s=90)
+ax[1, 0].set_title("hidden space (h1, h2)")
+ax[1, 0].set_xlim(-0.05, 1.05); ax[1, 0].set_ylim(-0.05, 1.05)
+
+<span class="c"># 4. 权重轨迹</span>
+Wh = np.array(history["W"])   <span class="c"># (300, 2, 2)</span>
+Vh = np.array(history["v"])   <span class="c"># (300, 2, 1)</span>
+for i in range(2):
+    for j in range(2):
+        ax[1, 1].plot(Wh[:, i, j], label=f"W{i+1}{j+1}")
+for j in range(2):
+    ax[1, 1].plot(Vh[:, j, 0], "--", label=f"v{j+1}")
+ax[1, 1].set_title("weights over epochs")
+ax[1, 1].legend(fontsize=7, ncol=2)
+
+plt.tight_layout()
+plt.savefig("mlp_params.png", dpi=150)
+</code></pre>
+
+      <div class="prose" style="margin-top:28px">
+        <p>页面上那 6 张图就是按上面的思路画的：损失曲线对应第 ① 段，决策边界和隐藏层表示对应第 ②③ 段，参数轨迹对应最后一段。区别只在绘制方式——这里是 canvas，Python 版用 matplotlib。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 结论 -->
+  <section class="section section--tint" id="summary">
+    <div class="wrap">
+      <div class="section__head">
+        <p class="eyebrow">05 / 结论</p>
+        <h2>做完之后记住的三件事</h2>
+      </div>
+      <div class="prose" style="margin-top:28px">
+        <p><b>1. 学习参数不是「猜」出来的。</b>每一步更新的方向由损失对参数的梯度决定，Adam 只是让步长更稳一些。关掉梯度、只保留前向计算，参数就永远不会变。</p>
+        <p><b>2. 隐藏层的作用是换一组坐标。</b>原始平面上 XOR 两类点交错，任何直线都分不开；经过 W 和 b 映射到 (h₁, h₂) 后，同样的样本变成线性可分，输出层才只需要画一条直线。</p>
+        <p><b>3. 超参数会改变过程，不改变结论。</b>学习率小收敛慢，学习率大会震荡，但在合理范围里，300 轮都能学会 XOR。真正决定能力边界的是网络有没有隐藏层，而不是训练多久。</p>
+      </div>
+      <div style="margin-top:34px">
+        <a class="btn" href="./index.html">← 回到首页</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <h2>第 15 节作业 · MLP 学习参数的实现与可视化</h2>
+    <p>2—2—1 网络、4 个 XOR 样本、9 个可学习参数。页面上的训练与图表全部在浏览器里实时计算。</p>
+    <div class="foot-meta">
+      <span>人工智能概论 · 第二篇 / 第 15 节</span>
+      <span>纯 HTML + Canvas，无外部依赖</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  var X = [[0, 0], [0, 1], [1, 0], [1, 1]];
+  var T = [0, 1, 1, 0];
+  var N = 4;
+  var EPOCHS = 300;
+
+  function sig(z) { return 1 / (1 + Math.exp(-z)); }
+
+  function forward(P, x) {
+    var h0 = sig(x[0] * P.W[0][0] + x[1] * P.W[1][0] + P.b[0]);
+    var h1 = sig(x[0] * P.W[0][1] + x[1] * P.W[1][1] + P.b[1]);
+    var logit = h0 * P.v[0] + h1 * P.v[1] + P.bo;
+    return { h: [h0, h1], logit: logit, prob: sig(logit) };
+  }
+
+  function bce(logit, t) {
+    return Math.max(logit, 0) - logit * t + Math.log1p(Math.exp(-Math.abs(logit)));
+  }
+
+  function cloneParams(P) {
+    return {
+      W: [[P.W[0][0], P.W[0][1]], [P.W[1][0], P.W[1][1]]],
+      b: [P.b[0], P.b[1]],
+      v: [P.v[0], P.v[1]],
+      bo: P.bo
+    };
+  }
+
+  function evaluate(P) {
+    var pred = [], hid = [], loss = 0;
+    for (var i = 0; i < N; i++) {
+      var o = forward(P, X[i]);
+      pred.push(o.prob);
+      hid.push(o.h);
+      loss += bce(o.logit, T[i]);
+    }
+    return { loss: loss / N, pred: pred, hid: hid };
+  }
+
+  function train(lr, epochs, keepHistory) {
+    var P = {
+      W: [[2, -2], [-2, 2]],
+      b: [-1, -1],
+      v: [3, 3],
+      bo: -2.5
+    };
+    var m = { W: [[0, 0], [0, 0]], b: [0, 0], v: [0, 0], bo: 0 };
+    var s = { W: [[0, 0], [0, 0]], b: [0, 0], v: [0, 0], bo: 0 };
+    var b1 = 0.9, b2 = 0.999, eps = 1e-7;
+
+    var hist = { loss: [], params: [], pred: [], hid: [] };
+    var snap = function () {
+      var ev = evaluate(P);
+      hist.loss.push(ev.loss);
+      if (keepHistory) {
+        hist.params.push(cloneParams(P));
+        hist.pred.push(ev.pred);
+        hist.hid.push(ev.hid);
+      }
+      return ev;
+    };
+
+    snap();
+    var firstBelow = -1;
+
+    for (var e = 1; e <= epochs; e++) {
+      var g = { W: [[0, 0], [0, 0]], b: [0, 0], v: [0, 0], bo: 0 };
+      var hs = [], ps = [], loss = 0;
+      for (var i = 0; i < N; i++) {
+        var o = forward(P, X[i]);
+        hs.push(o.h);
+        ps.push(o.prob);
+        loss += bce(o.logit, T[i]);
+      }
+      loss /= N;
+
+      for (var k = 0; k < N; k++) {
+        var d = (ps[k] - T[k]) / N;
+        g.v[0] += d * hs[k][0];
+        g.v[1] += d * hs[k][1];
+        g.bo += d;
+        for (var j = 0; j < 2; j++) {
+          var dp = d * P.v[j] * hs[k][j] * (1 - hs[k][j]);
+          g.W[0][j] += dp * X[k][0];
+          g.W[1][j] += dp * X[k][1];
+          g.b[j] += dp;
+        }
+      }
+
+      var bc1 = 1 - Math.pow(b1, e);
+      var bc2 = 1 - Math.pow(b2, e);
+
+      for (var a = 0; a < 2; a++) {
+        for (var c = 0; c < 2; c++) {
+          m.W[a][c] = b1 * m.W[a][c] + (1 - b1) * g.W[a][c];
+          s.W[a][c] = b2 * s.W[a][c] + (1 - b2) * g.W[a][c] * g.W[a][c];
+          P.W[a][c] -= lr * (m.W[a][c] / bc1) / (Math.sqrt(s.W[a][c] / bc2) + eps);
+        }
+      }
+      for (var u = 0; u < 2; u++) {
+        m.b[u] = b1 * m.b[u] + (1 - b1) * g.b[u];
+        s.b[u] = b2 * s.b[u] + (1 - b2) * g.b[u] * g.b[u];
+        P.b[u] -= lr * (m.b[u] / bc1) / (Math.sqrt(s.b[u] / bc2) + eps);
+
+        m.v[u] = b1 * m.v[u] + (1 - b1) * g.v[u];
+        s.v[u] = b2 * s.v[u] + (1 - b2) * g.v[u] * g.v[u];
+        P.v[u] -= lr * (m.v[u] / bc1) / (Math.sqrt(s.v[u] / bc2) + eps);
+      }
+      m.bo = b1 * m.bo + (1 - b1) * g.bo;
+      s.bo = b2 * s.bo + (1 - b2) * g.bo * g.bo;
+      P.bo -= lr * (m.bo / bc1) / (Math.sqrt(s.bo / bc2) + eps);
+
+      var cur = snap();
+      if (firstBelow < 0 && cur.loss < 0.05) firstBelow = e;
+    }
+
+    var finalEv = evaluate(P);
+    var correct = 0;
+    for (var q = 0; q < N; q++) {
+      if ((finalEv.pred[q] >= 0.5 ? 1 : 0) === T[q]) correct++;
+    }
+    return {
+      hist: hist,
+      final: finalEv,
+      firstBelow: firstBelow,
+      correct: correct
+    };
+  }
+
+  /* ================= state ================= */
+  var state = { lr: 0.03, epoch: 0, playing: false, raf: null, run: null };
+
+  var el = {
+    play: document.getElementById('btn-play'),
+    step: document.getElementById('btn-step'),
+    reset: document.getElementById('btn-reset'),
+    epoch: document.getElementById('epoch'),
+    epochLabel: document.getElementById('epoch-label'),
+    lr: document.getElementById('lr'),
+    loss: document.getElementById('st-loss'),
+    pred: document.getElementById('st-pred'),
+    acc: document.getElementById('st-acc'),
+    paramBody: document.getElementById('param-body'),
+    paramEpoch: document.getElementById('param-epoch'),
+    lrBody: document.getElementById('lr-body'),
+    net: document.getElementById('net')
+  };
+
+  var COLORS = ['#3B5BFF', '#D6560F', '#1F9D8F', '#8C4BD6', '#C9A227', '#5A6270'];
+
+  /* ================= canvas helpers ================= */
+  function fit(cv) {
+    var dpr = window.devicePixelRatio || 1;
+    var w = cv.clientWidth || 300;
+    var h = cv.clientHeight || 220;
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+      cv.width = Math.round(w * dpr);
+      cv.height = Math.round(h * dpr);
+    }
+    var ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    return { ctx: ctx, w: w, h: h };
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function fmt(v, d) {
+    d = (d === undefined) ? 3 : d;
+    if (!isFinite(v)) return '—';
+    var s = v.toFixed(d);
+    return (s === '-0.000') ? '0.000' : s;
+  }
+
+  /* ================= network diagram ================= */
+  var netBuild = (function () {
+    var svgNS = 'http://www.w3.org/2000/svg';
+    var gLines = document.getElementById('net-lines');
+    var gIn = document.getElementById('net-inputs');
+    var gHid = document.getElementById('net-hidden');
+    var gOut = document.getElementById('net-output');
+
+    var posIn = [[66, 84], [66, 216]];
+    var posHid = [[220, 84], [220, 216]];
+    var posOut = [374, 150];
+
+    var lines = [];
+    for (var k = 0; k < 2; k++) {
+      for (var j = 0; j < 2; j++) {
+        var ln = document.createElementNS(svgNS, 'line');
+        ln.setAttribute('x1', posIn[k][0]); ln.setAttribute('y1', posIn[k][1]);
+        ln.setAttribute('x2', posHid[j][0]); ln.setAttribute('y2', posHid[j][1]);
+        ln.setAttribute('stroke', '#CFC9BB');
+        ln.setAttribute('stroke-width', '1.5');
+        gLines.appendChild(ln);
+        lines.push({ el: ln, k: k, j: j, kind: 'w' });
+      }
+    }
+    for (var j2 = 0; j2 < 2; j2++) {
+      var lo = document.createElementNS(svgNS, 'line');
+      lo.setAttribute('x1', posHid[j2][0]); lo.setAttribute('y1', posHid[j2][1]);
+      lo.setAttribute('x2', posOut[0]); lo.setAttribute('y2', posOut[1]);
+      lo.setAttribute('stroke', '#CFC9BB');
+      lo.setAttribute('stroke-width', '1.5');
+      gLines.appendChild(lo);
+      lines.push({ el: lo, j: j2, kind: 'v' });
+    }
+
+    function mkNode(g, x, y, label, labelColor) {
+      var c = document.createElementNS(svgNS, 'circle');
+      c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', 25);
+      c.setAttribute('fill', '#FFFFFF');
+      c.setAttribute('stroke', '#CFC9BB');
+      c.setAttribute('stroke-width', '1.4');
+      g.appendChild(c);
+      var t = document.createElementNS(svgNS, 'text');
+      t.setAttribute('x', x); t.setAttribute('y', y + 5);
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('font-size', '12');
+      t.setAttribute('fill', '#14161B');
+      g.appendChild(t);
+      var lb = document.createElementNS(svgNS, 'text');
+      lb.setAttribute('x', x); lb.setAttribute('y', y + 46);
+      lb.setAttribute('text-anchor', 'middle');
+      lb.setAttribute('font-size', '11');
+      lb.setAttribute('fill', '#64686E');
+      lb.textContent = label;
+      g.appendChild(lb);
+      return t;
+    }
+
+    var inTxt = [mkNode(gIn, posIn[0][0], posIn[0][1], 'x₁'), mkNode(gIn, posIn[1][0], posIn[1][1], 'x₂')];
+    var hidTxt = [mkNode(gHid, posHid[0][0], posHid[0][1], 'h₁ (sigmoid)'), mkNode(gHid, posHid[1][0], posHid[1][1], 'h₂ (sigmoid)')];
+    var outTxt = mkNode(gOut, posOut[0], posOut[1], 'ŷ = p(y=1)');
+
+    return { lines: lines, inTxt: inTxt, hidTxt: hidTxt, outTxt: outTxt };
+  })();
+
+  function drawNetwork(P, hid, x) {
+    netBuild.lines.forEach(function (L) {
+      var w = (L.kind === 'w') ? P.W[L.k][L.j] : P.v[L.j];
+      L.el.setAttribute('stroke', w >= 0 ? '#3B5BFF' : '#D6560F');
+      L.el.setAttribute('stroke-width', (0.9 + Math.min(4.2, Math.abs(w) * 0.75)).toFixed(2));
+      L.el.setAttribute('stroke-opacity', '0.78');
+    });
+    netBuild.inTxt[0].textContent = String(x[0]);
+    netBuild.inTxt[1].textContent = String(x[1]);
+    netBuild.hidTxt[0].textContent = hid[0].toFixed(2);
+    netBuild.hidTxt[1].textContent = hid[1].toFixed(2);
+    netBuild.outTxt.textContent = P.__prob !== undefined ? P.__prob.toFixed(2) : '—';
+  }
+
+  /* ================= decision boundary ================= */
+  var GRID = 72;
+  var off = document.createElement('canvas');
+  off.width = GRID; off.height = GRID;
+  var offCtx = off.getContext('2d');
+
+  function drawBoundary(P) {
+    var cv = document.getElementById('c-boundary');
+    var f = fit(cv), ctx = f.ctx, w = f.w, h = f.h;
+    var pad = 30;
+    var size = Math.min(w - pad * 2, h - pad * 2);
+    var ox = (w - size) / 2;
+    var oy = (h - size) / 2;
+    var lo = -0.2, hi = 1.2;
+
+    var img = offCtx.createImageData(GRID, GRID);
+    for (var gy = 0; gy < GRID; gy++) {
+      var x2 = hi - (gy + 0.5) / GRID * (hi - lo);
+      for (var gx = 0; gx < GRID; gx++) {
+        var x1 = lo + (gx + 0.5) / GRID * (hi - lo);
+        var o = forward(P, [x1, x2]);
+        var conf = Math.abs(o.prob - 0.5) * 2;
+        var base = o.prob >= 0.5 ? [59, 91, 255] : [214, 86, 15];
+        var a = 255 * (0.10 + 0.62 * conf);
+        var idx = (gy * GRID + gx) * 4;
+        img.data[idx] = base[0];
+        img.data[idx + 1] = base[1];
+        img.data[idx + 2] = base[2];
+        img.data[idx + 3] = a;
+      }
+    }
+    offCtx.putImageData(img, 0, 0);
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(ox, oy, size, size);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, ox, oy, size, size);
+
+    ctx.strokeStyle = '#CFC9BB';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(ox + 0.5, oy + 0.5, size - 1, size - 1);
+
+    ctx.strokeStyle = 'rgba(20,22,27,0.18)';
+    ctx.setLineDash([4, 4]);
+    [0, 1].forEach(function (v) {
+      var px = ox + (v - lo) / (hi - lo) * size;
+      var py = oy + size - (v - lo) / (hi - lo) * size;
+      ctx.beginPath(); ctx.moveTo(px, oy); ctx.lineTo(px, oy + size); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ox, py); ctx.lineTo(ox + size, py); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = '#64686E';
+    ctx.font = '11px GeistMono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('x₁', ox + size / 2, oy + size + 18);
+    ctx.save();
+    ctx.translate(ox - 16, oy + size / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('x₂', 0, 0);
+    ctx.restore();
+
+    for (var i = 0; i < N; i++) {
+      var px2 = ox + (X[i][0] - lo) / (hi - lo) * size;
+      var py2 = oy + size - (X[i][1] - lo) / (hi - lo) * size;
+      ctx.beginPath();
+      ctx.arc(px2, py2, 6.5, 0, Math.PI * 2);
+      ctx.fillStyle = T[i] === 1 ? '#3B5BFF' : '#D6560F';
+      ctx.fill();
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#14161B';
+      ctx.font = '10px GeistMono, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(X[i][0] + '' + X[i][1], px2 + 10, py2 - 8);
+    }
+    ctx.textAlign = 'left';
+  }
+
+  /* ================= hidden space ================= */
+  function drawHidden(hid, P) {
+    var cv = document.getElementById('c-hidden');
+    var f = fit(cv), ctx = f.ctx, w = f.w, h = f.h;
+    var pad = 42;
+    var size = Math.min(w - pad * 2, h - pad * 2);
+    var ox = (w - size) / 2;
+    var oy = (h - size) / 2;
+    var lo = -0.12, hi = 1.12;
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(ox, oy, size, size);
+    ctx.strokeStyle = '#CFC9BB';
+    ctx.strokeRect(ox + 0.5, oy + 0.5, size - 1, size - 1);
+
+    ctx.strokeStyle = '#E2DED4';
+    ctx.lineWidth = 1;
+    [0, 0.25, 0.5, 0.75, 1].forEach(function (v) {
+      var px = ox + (v - lo) / (hi - lo) * size;
+      var py = oy + size - (v - lo) / (hi - lo) * size;
+      ctx.beginPath(); ctx.moveTo(px, oy); ctx.lineTo(px, oy + size); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ox, py); ctx.lineTo(ox + size, py); ctx.stroke();
+    });
+
+    ctx.fillStyle = '#64686E';
+    ctx.font = '11px GeistMono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('h₁', ox + size / 2, oy + size + 18);
+    ctx.save();
+    ctx.translate(ox - 16, oy + size / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('h₂', 0, 0);
+    ctx.restore();
+    ctx.textAlign = 'right';
+    [0, 0.5, 1].forEach(function (v) {
+      var py = oy + size - (v - lo) / (hi - lo) * size;
+      ctx.fillText(v === 0 ? '0' : v.toFixed(1), ox - 8, py + 4);
+    });
+    ctx.textAlign = 'left';
+
+    /* 输出层的分类直线 v1*h1 + v2*h2 + bo = 0 */
+    if (Math.abs(P.v[1]) > 1e-6) {
+      var pts = [];
+      for (var s = 0; s <= 40; s++) {
+        var h1 = lo + (hi - lo) * s / 40;
+        var h2 = -(P.v[0] * h1 + P.bo) / P.v[1];
+        if (h2 >= lo && h2 <= hi) pts.push([h1, h2]);
+      }
+      if (pts.length > 1) {
+        ctx.beginPath();
+        pts.forEach(function (pt, idx) {
+          var px = ox + (pt[0] - lo) / (hi - lo) * size;
+          var py = oy + size - (pt[1] - lo) / (hi - lo) * size;
+          if (idx === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        });
+        ctx.strokeStyle = 'rgba(20,22,27,0.55)';
+        ctx.lineWidth = 1.6;
+        ctx.setLineDash([6, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    var labels = ['00', '01', '10', '11'];
+    for (var i = 0; i < N; i++) {
+      var px2 = ox + (hid[i][0] - lo) / (hi - lo) * size;
+      var py2 = oy + size - (hid[i][1] - lo) / (hi - lo) * size;
+      ctx.beginPath();
+      ctx.arc(px2, py2, 7, 0, Math.PI * 2);
+      ctx.fillStyle = T[i] === 1 ? '#3B5BFF' : '#D6560F';
+      ctx.fill();
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#14161B';
+      ctx.font = '10px GeistMono, monospace';
+      var dy = (i === 0) ? -12 : (i === 3 ? 18 : -12);
+      var dx = (i === 0) ? -18 : 10;
+      ctx.fillText(labels[i], px2 + dx, py2 + dy);
+    }
+  }
+
+  /* ================= line charts ================= */
+  function chartFrame(ctx, w, h) {
+    var l = 44, r = 12, t = 12, b = 24;
+    return { l: l, r: r, t: t, b: b, iw: w - l - r, ih: h - t - b };
+  }
+
+  function drawLoss(losses, cur) {
+    var cv = document.getElementById('c-loss');
+    var f = fit(cv), ctx = f.ctx, w = f.w, h = f.h;
+    var fr = chartFrame(ctx, w, h);
+    var yMin = -4.2, yMax = 0.15;
+
+    function px(i) { return fr.l + (i / EPOCHS) * fr.iw; }
+    function py(l) {
+      var v = Math.log10(Math.max(l, 1e-5));
+      v = Math.min(yMax, Math.max(yMin, v));
+      return fr.t + (1 - (v - yMin) / (yMax - yMin)) * fr.ih;
+    }
+
+    ctx.strokeStyle = '#E2DED4';
+    ctx.lineWidth = 1;
+    [0, -1, -2, -3, -4].forEach(function (e) {
+      var y = py(Math.pow(10, e));
+      ctx.beginPath(); ctx.moveTo(fr.l, y); ctx.lineTo(fr.l + fr.iw, y); ctx.stroke();
+      ctx.fillStyle = '#64686E';
+      ctx.font = '10px GeistMono, monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(e === 0 ? '1' : '1e' + e, fr.l - 8, y + 3.5);
+    });
+    ctx.fillStyle = '#64686E';
+    ctx.textAlign = 'center';
+    [0, 100, 200, 300].forEach(function (ep) {
+      ctx.fillText(String(ep), px(ep), h - 6);
+    });
+
+    ctx.beginPath();
+    losses.forEach(function (L, i) {
+      var x = px(i), y = py(L);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = 'rgba(59,91,255,0.22)';
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+
+    ctx.beginPath();
+    for (var i = 0; i <= cur; i++) {
+      var x2 = px(i), y2 = py(losses[i]);
+      if (i === 0) ctx.moveTo(x2, y2); else ctx.lineTo(x2, y2);
+    }
+    ctx.strokeStyle = '#3B5BFF';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    if (cur >= 0) {
+      ctx.beginPath();
+      ctx.arc(px(cur), py(losses[cur]), 3.6, 0, Math.PI * 2);
+      ctx.fillStyle = '#3B5BFF';
+      ctx.fill();
+    }
+    ctx.textAlign = 'left';
+  }
+
+  function seriesChart(cvId, series, hist, cur, opts) {
+    var cv = document.getElementById(cvId);
+    var f = fit(cv), ctx = f.ctx, w = f.w, h = f.h;
+    var fr = chartFrame(ctx, w, h);
+
+    var min = Infinity, max = -Infinity;
+    series.forEach(function (s) {
+      hist.forEach(function (params) {
+        var v = s.get(params);
+        if (v < min) min = v;
+        if (v > max) max = v;
+      });
+    });
+    if (!isFinite(min)) { min = -1; max = 1; }
+    var span = Math.max(max - min, 0.5);
+    min -= span * 0.12;
+    max += span * 0.12;
+    if (min > 0) min = 0;
+    if (max < 0) max = 0;
+
+    function py(v) { return fr.t + (1 - (v - min) / (max - min)) * fr.ih; }
+    function px(i) { return fr.l + (i / EPOCHS) * fr.iw; }
+
+    ctx.strokeStyle = '#E2DED4';
+    ctx.lineWidth = 1;
+    for (var g = 0; g <= 4; g++) {
+      var val = min + (max - min) * g / 4;
+      var y = py(val);
+      ctx.beginPath(); ctx.moveTo(fr.l, y); ctx.lineTo(fr.l + fr.iw, y); ctx.stroke();
+      ctx.fillStyle = '#64686E';
+      ctx.font = '10px GeistMono, monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(val.toFixed(1), fr.l - 8, y + 3.5);
+    }
+    if (min <= 0 && max >= 0) {
+      ctx.strokeStyle = '#CFC9BB';
+      ctx.beginPath(); ctx.moveTo(fr.l, py(0)); ctx.lineTo(fr.l + fr.iw, py(0)); ctx.stroke();
+    }
+    ctx.fillStyle = '#64686E';
+    ctx.textAlign = 'center';
+    [0, 100, 200, 300].forEach(function (ep) { ctx.fillText(String(ep), px(ep), h - 6); });
+
+    series.forEach(function (s, si) {
+      ctx.beginPath();
+      for (var i = 0; i <= cur; i++) {
+        var x = px(i), y = py(s.get(hist[i]));
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = COLORS[si % COLORS.length];
+      ctx.lineWidth = 1.7;
+      ctx.stroke();
+      if (cur >= 0) {
+        ctx.beginPath();
+        ctx.arc(px(cur), py(s.get(hist[cur])), 2.8, 0, Math.PI * 2);
+        ctx.fillStyle = COLORS[si % COLORS.length];
+        ctx.fill();
+      }
+    });
+    ctx.textAlign = 'left';
+  }
+
+  /* ================= parameter table ================= */
+  var PARAM_DEFS = [
+    { key: 'W11', label: '输入 x₁ → 隐藏 h₁', get: function (P) { return P.W[0][0]; }, init: 2 },
+    { key: 'W12', label: '输入 x₂ → 隐藏 h₁', get: function (P) { return P.W[1][0]; }, init: -2 },
+    { key: 'W21', label: '输入 x₁ → 隐藏 h₂', get: function (P) { return P.W[0][1]; }, init: -2 },
+    { key: 'W22', label: '输入 x₂ → 隐藏 h₂', get: function (P) { return P.W[1][1]; }, init: 2 },
+    { key: 'b₁', label: '隐藏 h₁ 的偏置', get: function (P) { return P.b[0]; }, init: -1 },
+    { key: 'b₂', label: '隐藏 h₂ 的偏置', get: function (P) { return P.b[1]; }, init: -1 },
+    { key: 'v₁', label: '隐藏 h₁ → 输出', get: function (P) { return P.v[0]; }, init: 3 },
+    { key: 'v₂', label: '隐藏 h₂ → 输出', get: function (P) { return P.v[1]; }, init: 3 },
+    { key: 'b<sub>out</sub>', label: '输出层偏置', get: function (P) { return P.bo; }, init: -2.5 }
+  ];
+
+  function updateParamTable(P) {
+    var html = '';
+    PARAM_DEFS.forEach(function (d) {
+      var v = d.get(P);
+      var delta = v - d.init;
+      var cls = Math.abs(delta) < 0.0005 ? '' : (delta > 0 ? 'pos' : 'neg');
+      html += '<tr><td class="num">' + d.key + '</td><td>' + d.label +
+        '</td><td class="num">' + fmt(d.init, 3) +
+        '</td><td class="num' + (v >= 0 ? ' pos' : ' neg') + '">' + fmt(v, 3) +
+        '</td><td class="num ' + cls + '">' + (delta >= 0 ? '+' : '') + fmt(delta, 3) + '</td></tr>';
+    });
+    el.paramBody.innerHTML = html;
+  }
+
+  /* ================= learning rate table ================= */
+  function buildLrTable() {
+    var lrs = [0.001, 0.01, 0.03, 0.1, 0.5];
+    var html = '';
+    lrs.forEach(function (lr) {
+      var r = train(lr, EPOCHS, false);
+      var ok = (r.correct === 4);
+      var reach = r.firstBelow > 0 ? (r.firstBelow + ' 轮') : '未达到';
+      var verdict = ok ? '学会 XOR' : '没学会';
+      if (lr === 0.001) verdict = ok ? '学会，但很慢' : '300 轮不够';
+      if (lr >= 0.1) verdict = ok ? '学会，过程更抖' : '震荡，未收敛';
+      var style = (lr === 0.03) ? ' style="background:rgba(59,91,255,0.05)"' : '';
+      html += '<tr' + style + '><td class="num">' + lr + (lr === 0.03 ? '（课堂设置）' : '') +
+        '</td><td class="num">' + reach +
+        '</td><td class="num">' + fmt(r.final.loss, 5) +
+        '</td><td class="num">' + r.correct + ' / 4' +
+        '</td><td class="' + (ok ? 'good' : 'bad') + '">' + verdict + '</td></tr>';
+    });
+    el.lrBody.innerHTML = html;
+  }
+
+  /* ================= render ================= */
+  function render() {
+    var h = state.run.hist;
+    var i = state.epoch;
+    var P = h.params[i] || cloneParams({
+      W: [[2, -2], [-2, 2]], b: [-1, -1], v: [3, 3], bo: -2.5
+    });
+    var pred = h.pred[i] || [0, 0, 0, 0];
+    var hid = h.hid[i] || [[0, 0], [0, 0], [0, 0], [0, 0]];
+    var loss = h.loss[i];
+
+    el.epoch.value = i;
+    el.epochLabel.textContent = i;
+    el.loss.textContent = fmt(loss, 5);
+    el.pred.textContent = pred.map(function (p) { return fmt(p, 2); }).join(' / ');
+
+    var correct = 0;
+    for (var q = 0; q < N; q++) {
+      if ((pred[q] >= 0.5 ? 1 : 0) === T[q]) correct++;
+    }
+    el.acc.textContent = 'XOR 正确 ' + correct + '/4';
+    el.acc.style.color = correct === 4 ? '#1F7A5C' : '#D6560F';
+
+    var Pp = cloneParams(P);
+    Pp.__prob = pred[2] !== undefined ? pred[2] : 0;
+    drawNetwork(Pp, hid[2], X[2]);
+    drawBoundary(P);
+    drawHidden(hid, P);
+    drawLoss(h.loss, i);
+    seriesChart('c-weights', [
+      { get: function (p) { return p.W[0][0]; } },
+      { get: function (p) { return p.W[0][1]; } },
+      { get: function (p) { return p.W[1][0]; } },
+      { get: function (p) { return p.W[1][1]; } },
+      { get: function (p) { return p.v[0]; } },
+      { get: function (p) { return p.v[1]; } }
+    ], h.params, i);
+    seriesChart('c-biases', [
+      { get: function (p) { return p.b[0]; } },
+      { get: function (p) { return p.b[1]; } },
+      { get: function (p) { return p.bo; } }
+    ], h.params, i);
+    updateParamTable(P);
+    el.paramEpoch.textContent = '第 ' + i + ' 轮';
+  }
+
+  /* ================= controls ================= */
+  function setPlaying(on) {
+    state.playing = on;
+    el.play.textContent = on ? '暂停' : (state.epoch >= EPOCHS ? '重新播放' : '开始训练');
+  }
+
+  function tick() {
+    if (!state.playing) return;
+    var next = Math.min(EPOCHS, state.epoch + 2);
+    state.epoch = next;
+    render();
+    if (next >= EPOCHS) {
+      setPlaying(false);
+      return;
+    }
+    state.raf = requestAnimationFrame(tick);
+  }
+
+  el.play.addEventListener('click', function () {
+    if (state.playing) {
+      state.playing = false;
+      if (state.raf) cancelAnimationFrame(state.raf);
+      setPlaying(false);
+      return;
+    }
+    if (state.epoch >= EPOCHS) state.epoch = 0;
+    setPlaying(true);
+    render();
+    state.raf = requestAnimationFrame(tick);
+  });
+
+  el.step.addEventListener('click', function () {
+    if (state.playing) {
+      state.playing = false;
+      if (state.raf) cancelAnimationFrame(state.raf);
+    }
+    state.epoch = Math.min(EPOCHS, state.epoch + 1);
+    setPlaying(false);
+    render();
+  });
+
+  el.reset.addEventListener('click', function () {
+    state.playing = false;
+    if (state.raf) cancelAnimationFrame(state.raf);
+    state.epoch = 0;
+    setPlaying(false);
+    render();
+  });
+
+  el.epoch.addEventListener('input', function () {
+    state.playing = false;
+    if (state.raf) cancelAnimationFrame(state.raf);
+    state.epoch = parseInt(el.epoch.value, 10) || 0;
+    setPlaying(false);
+    render();
+  });
+
+  el.lr.addEventListener('change', function () {
+    state.playing = false;
+    if (state.raf) cancelAnimationFrame(state.raf);
+    state.lr = parseFloat(el.lr.value);
+    state.run = train(state.lr, EPOCHS, true);
+    state.epoch = 0;
+    setPlaying(false);
+    render();
+  });
+
+  /* ================= init ================= */
+  state.run = train(state.lr, EPOCHS, true);
+  render();
+  buildLrTable();
+
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      if (!state.playing) render();
+    }, 120);
+  });
+})();
+</script>
+
+</body>
+</html>
