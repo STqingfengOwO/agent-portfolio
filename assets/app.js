@@ -21,7 +21,7 @@
   }
 
   /* 2. Highlight the nav link for the section currently in view */
-  var navLinks = Array.prototype.slice.call(document.querySelectorAll('.nav__links a'));
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll('.nav__links a[href^="#"]'));
   var navSections = navLinks.map(function (a) {
     return document.querySelector(a.getAttribute('href'));
   }).filter(Boolean);
